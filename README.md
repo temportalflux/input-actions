@@ -19,7 +19,7 @@ As in Rewired, a Controller represents a physical (gamepad/joystick/etc) or virt
 
 ### Action
 
-As in Rewired, an Action is a application/consumer facing event which a User can trigger via a Controller. If a consumer of ReBound has access to a User and Action, they can cause gameplay events to happen when actions are triggered. A Controller map its buttons and/or axes to Actions via Controller Maps.
+As in Rewired, an Action is a application/consumer facing event which a User can trigger via a Controller. If a consumer of ReBound has access to a User and Action, they can cause gameplay events to happen when actions are triggered. A Controller's buttons and/or axes can be bound to to Actions via Action Binding Maps.
 
 ### Action Behavior
 
@@ -31,12 +31,12 @@ Action Behaviors are akin to Input Behaviors in Rewired. They modify the input f
 
 ### Layout
 
-A layout is a setting that Users use in conjunction with Map Categories to determine which controller maps to use. Layouts can be used to define profiles such as "left-handed" and "southpaw" to change a User's Controller input experience. Each layout has a list of Map Categories & their Controller Maps which handle mapping a controller's buttons and/or axes to Actions.
+A layout is a setting that Users use in conjunction with Map Categories to determine which action binding maps to use. Layouts can be used to define profiles such as "left-handed" and "southpaw" to change a User's Controller input experience. Each layout has a list of Map Categories & their Action Binding Maps which handle mapping a controller's buttons and/or axes to Actions.
 
 ### Map Category
 
-A map category contains a set of Controller Maps to use when the category is enabled. A category can be enabled/disabled for a given user to turn on/off groups of actions. The example used in Rewired sets forth categories such as "Gameplay Shared", "Infantry", "Vehicle", "Airplane", and "Menu". Any of these categories can be toggled to allow or block input from the actions mapped in the category.
+A map category contains a set of Action Binding Maps to use when the category is enabled. A category can be enabled/disabled for a given user to turn on/off groups of actions. The example used in Rewired sets forth categories such as "Gameplay Shared", "Infantry", "Vehicle", "Airplane", and "Menu". Any of these categories can be toggled to allow or block input from the actions mapped in the category.
 
-### Controller Map
+### Action Binding Map
 
-As in Rewired, a Controller Map handles the connective tissue between Controllers and Actions. Each controller map can associate a button/axis on a Controller to an Action. This is how Users know what controller inputs drive what Actions. Controller Maps are stored in Map Categories so that consumers of ReBound can toggle on/off collections of controller maps all at once.
+An Action Binding Map handles the connective tissue between Controllers and Actions, like Controller Maps do in Rewired. Each action binding map can associate a button/axis on a Controller to an Action. This is how Users know what controller inputs drive what Actions. Action Binding Maps are stored in Map Categories so that consumers of ReBound can toggle on/off collections of action binding maps all at once.
