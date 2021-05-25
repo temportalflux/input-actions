@@ -14,9 +14,14 @@ mod category;
 pub use category::*;
 mod controller;
 pub use controller::*;
+mod event;
+pub use event::*;
 mod key;
 pub use key::*;
 mod system;
 pub use system::*;
 mod user;
 pub use user::*;
+
+#[cfg(feature = "winit")]
+pub mod winit;

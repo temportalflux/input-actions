@@ -1,5 +1,9 @@
 #[derive(Debug, Clone)]
 pub enum Button {
+	MouseLeft,
+	MouseCenter,
+	MouseRight,
+
 	/// The bottom button in the face-diamond.
 	/// - PS4: X
 	/// - Xbox: A

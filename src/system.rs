@@ -1,9 +1,24 @@
-use crate::{Action, ActionId, Category, CategoryId, Layout, User};
+use crate::{Action, ActionId, Category, CategoryId, Event, Layout, User};
 use std::{
 	collections::HashMap,
 	mem::MaybeUninit,
 	sync::{Once, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
+
+struct Singleton(MaybeUninit<RwLock<System>>, Once);
+
+impl Singleton {
+	const fn uninit() -> Singleton {
+		Singleton(MaybeUninit::uninit(), Once::new())
+	}
+
+	fn get(&mut self) -> &'static RwLock<System> {
+		let rwlock = &mut self.0;
+		let once = &mut self.1;
+		once.call_once(|| unsafe { rwlock.as_mut_ptr().write(RwLock::new(System::default())) });
+		unsafe { &*self.0.as_ptr() }
+	}
+}
 
 /// Contains the setup for a particular application.
 pub struct System {
@@ -63,19 +78,6 @@ impl System {
 		self.categories.insert(id, category);
 		self
 	}
-}
 
-struct Singleton(MaybeUninit<RwLock<System>>, Once);
-
-impl Singleton {
-	const fn uninit() -> Singleton {
-		Singleton(MaybeUninit::uninit(), Once::new())
-	}
-
-	fn get(&mut self) -> &'static RwLock<System> {
-		let rwlock = &mut self.0;
-		let once = &mut self.1;
-		once.call_once(|| unsafe { rwlock.as_mut_ptr().write(RwLock::new(System::default())) });
-		unsafe { &*self.0.as_ptr() }
-	}
+	pub fn send_event(&mut self, event: Event) {}
 }
