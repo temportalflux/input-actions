@@ -29,3 +29,14 @@ impl Default for Behavior {
 		Self { digital_axis: None }
 	}
 }
+
+fn _interp_to(current: f32, target: f32, delta_time: f32, speed: f32) -> f32 {
+	if speed <= 0.0 {
+		return target;
+	}
+	let dist = target - current;
+	if dist.powi(2) < f32::EPSILON {
+		return target;
+	}
+	return current + (dist * (delta_time * speed).max(0.0).min(1.0));
+}
