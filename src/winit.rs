@@ -1,46 +1,40 @@
-use crate::{Axis, Button, Event, EventButtonState, Key};
+use crate::{EventSource, Event, EventButtonState, Key, MouseButton};
 use std::convert::{TryFrom, TryInto};
 use winit::event::VirtualKeyCode;
 
 // TODO: Winit gamepad support is still in progress https://github.com/rust-windowing/winit/issues/944
-pub fn parse_winit_event<'a, T>(event: &winit::event::Event<'a, T>) -> Result<Event, ()> {
+pub fn parse_winit_event<'a, T>(event: &winit::event::Event<'a, T>) -> Result<(EventSource, Event), ()> {
 	use winit::event::{DeviceEvent, ElementState, KeyboardInput, MouseScrollDelta};
 	match event {
 		winit::event::Event::DeviceEvent {
 			event: DeviceEvent::MouseMotion { delta },
 			..
-		} => Ok(Event::MouseMove(delta.0, delta.1)),
+		} => Ok((EventSource::Mouse, Event::MouseMove(delta.0, delta.1))),
 		winit::event::Event::DeviceEvent {
 			event:
 				DeviceEvent::MouseWheel {
 					delta: MouseScrollDelta::LineDelta(horizontal, vertical),
 				},
 			..
-		} => Ok(Event::MouseScroll(*horizontal, *vertical)),
+		} => Ok((EventSource::Mouse, Event::MouseScroll(*horizontal, *vertical))),
 		winit::event::Event::DeviceEvent {
 			event: DeviceEvent::Motion { axis, value },
 			..
-		} => Axis::try_from(*axis)
-			.map(|axis_enum| Event::Axis(axis_enum, *value))
-			.map_err(|id| {
-				if let Some(axis_id) = id {
-					println!("ERROR failed to parse axis id {:?}", axis_id);
-				}
-				()
-			}),
+		} => Err(()),
 		winit::event::Event::DeviceEvent {
 			event: DeviceEvent::Button { button, state },
 			..
-		} => Button::try_from(*button)
-			.map(|button_enum| {
-				Event::Button(
+		} => MouseButton::try_from(*button)
+			.map(|button_enum| (
+				EventSource::Mouse,
+				Event::MouseButton(
 					button_enum,
 					match state {
 						ElementState::Pressed => EventButtonState::Pressed,
 						ElementState::Released => EventButtonState::Released,
 					},
 				)
-			})
+			))
 			.map_err(|id| {
 				println!("ERROR failed to parse button id {:?}", id);
 				()
@@ -55,38 +49,29 @@ pub fn parse_winit_event<'a, T>(event: &winit::event::Event<'a, T>) -> Result<Ev
 			..
 		} => (*keycode)
 			.try_into()
-			.map(|keycode| {
-				Event::Key(
+			.map(|keycode| (
+				EventSource::Keyboard,
+				Event::KeyboardKey(
 					keycode,
 					match state {
 						ElementState::Pressed => EventButtonState::Pressed,
 						ElementState::Released => EventButtonState::Released,
 					},
 				)
-			})
+			))
 			.map_err(|_| ()),
 		_ => Err(()),
 	}
 }
 
-impl TryFrom<winit::event::ButtonId> for Button {
+impl TryFrom<winit::event::ButtonId> for MouseButton {
 	type Error = winit::event::ButtonId;
 	fn try_from(id: winit::event::ButtonId) -> Result<Self, Self::Error> {
 		match id {
-			1 => Ok(Button::MouseLeft),
-			2 => Ok(Button::MouseCenter),
-			3 => Ok(Button::MouseRight),
+			1 => Ok(MouseButton::Left),
+			2 => Ok(MouseButton::Center),
+			3 => Ok(MouseButton::Right),
 			_ => Err(id),
-		}
-	}
-}
-
-impl TryFrom<winit::event::AxisId> for Axis {
-	type Error = Option<winit::event::AxisId>;
-	fn try_from(id: winit::event::AxisId) -> Result<Self, Self::Error> {
-		match id {
-			/*mouse x*/ 0 | /*mouse y*/ 1 => Err(None), // handled by MouseMove
-			_ => Err(Some(id)),
 		}
 	}
 }

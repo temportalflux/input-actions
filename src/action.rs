@@ -10,6 +10,20 @@ pub type ActionId = &'static str;
 
 #[derive(Clone)]
 pub struct Action {
-	pub kind: ActionKind,
-	pub behavior: ActionBehavior,
+	kind: ActionKind,
+	behavior: ActionBehavior,
+}
+
+impl Action {
+	pub fn new(kind: ActionKind) -> Self {
+		Self {
+			kind,
+			behavior: ActionBehavior::default(),
+		}
+	}
+
+	pub fn with_behavior(mut self, behavior: ActionBehavior) -> Self {
+		self.behavior = behavior;
+		self
+	}
 }

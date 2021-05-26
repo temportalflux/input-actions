@@ -1,8 +1,9 @@
 use crate::{Axis, Button, Key};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Binding {
-	Button(Button),
-	Key(Key),
-	Axis(Axis),
+	KeyboardKey(Key),
+	MouseButton(u32),
+	GamepadButton(Button),
+	GamepadAxis(Axis),
 }

@@ -6,5 +6,10 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["log"]
+
 [dependencies]
+gilrs = { git = "https://github.com/temportalflux/gilrs-fork" }
 winit = { version = "0.24", optional = true }
+log = { version = "0.4", features = ["std"], optional = true }

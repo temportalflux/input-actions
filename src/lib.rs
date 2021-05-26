@@ -1,3 +1,6 @@
+#[cfg(feature = "log")]
+extern crate log;
+
 mod action;
 pub use action::*;
 mod action_behavior;
@@ -18,6 +21,8 @@ mod event;
 pub use event::*;
 mod key;
 pub use key::*;
+mod state;
+pub use state::*;
 mod system;
 pub use system::*;
 mod user;
