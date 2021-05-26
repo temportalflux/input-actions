@@ -1,9 +1,9 @@
 use crate::{
 	action,
 	binding::Binding,
+	device::{self, GamepadKind},
 	source::{Axis, Button},
-	Category, CategoryId, ControllerId, Event, EventButtonState, EventSource, EventState,
-	GamepadKind, Layout, User,
+	Category, CategoryId, Event, EventButtonState, EventSource, EventState, Layout, User,
 };
 use std::{
 	collections::HashMap,
@@ -36,9 +36,9 @@ pub struct System {
 	actions: HashMap<action::Id, action::Action>,
 	layouts: Vec<Layout>,
 	categories: HashMap<Option<CategoryId>, Category>,
-	unassigned_controllers: Vec<ControllerId>,
-	controller_to_user: HashMap<ControllerId, UserId>,
-	disconnected_controller_users: HashMap<ControllerId, UserId>,
+	unassigned_devices: Vec<device::Id>,
+	device_to_user: HashMap<device::Id, UserId>,
+	disconnected_device_users: HashMap<device::Id, UserId>,
 }
 
 impl System {
@@ -49,9 +49,9 @@ impl System {
 			actions: HashMap::new(),
 			layouts: Vec::new(),
 			categories: HashMap::new(),
-			unassigned_controllers: vec![ControllerId::Mouse, ControllerId::Keyboard],
-			controller_to_user: HashMap::new(),
-			disconnected_controller_users: HashMap::new(),
+			unassigned_devices: vec![device::Id::Mouse, device::Id::Keyboard],
+			device_to_user: HashMap::new(),
+			disconnected_device_users: HashMap::new(),
 		}
 		.initialize_gamepads()
 	}
@@ -85,7 +85,7 @@ impl System {
 
 	pub fn add_users(&mut self, count: usize) -> &mut Self {
 		self.users.extend((0..count).map(|_| User::default()));
-		self.assign_unused_controllers();
+		self.assign_unused_devices();
 		self
 	}
 
@@ -138,47 +138,46 @@ impl System {
 		self
 	}
 
-	fn assign_unused_controllers(&mut self) {
-		let unused_controllers = self.unassigned_controllers.drain(..).collect::<Vec<_>>();
-		for controller in unused_controllers {
-			match controller {
-				ControllerId::Mouse | ControllerId::Keyboard => {
+	fn assign_unused_devices(&mut self) {
+		let unused_devices = self.unassigned_devices.drain(..).collect::<Vec<_>>();
+		for device in unused_devices {
+			match device {
+				device::Id::Mouse | device::Id::Keyboard => {
 					if let Some(first_user_id) = self.users.iter().position(|_| true) {
-						self.assign_controller(controller, first_user_id);
+						self.assign_device(device, first_user_id);
 					} else {
-						self.unassigned_controllers.push(controller);
+						self.unassigned_devices.push(device);
 					}
 				}
-				ControllerId::Gamepad(_, _) => {
+				device::Id::Gamepad(_, _) => {
 					if let Some(user_id) = self
 						.users
 						.iter()
-						.position(|user| !user.has_gamepad_controller())
+						.position(|user| !user.has_gamepad_device())
 					{
-						self.assign_controller(controller, user_id);
+						self.assign_device(device, user_id);
 					} else {
-						self.unassigned_controllers.push(controller);
+						self.unassigned_devices.push(device);
 					}
 				}
 			}
 		}
 	}
 
-	fn assign_controller(&mut self, controller: ControllerId, user_id: UserId) {
-		self.users[user_id].add_controller(controller);
-		self.controller_to_user.insert(controller, user_id);
+	fn assign_device(&mut self, device: device::Id, user_id: UserId) {
+		self.users[user_id].add_device(device);
+		self.device_to_user.insert(device, user_id);
 		if cfg!(feature = "log") {
-			log::info!(target: "ReBound", "assigning {} to user {}", controller, user_id);
+			log::info!(target: "ReBound", "assigning {} to user {}", device, user_id);
 		}
 	}
 
-	fn unassign_controller(&mut self, controller: ControllerId) {
-		if let Some(user_id) = self.controller_to_user.remove(&controller) {
-			self.users[user_id].remove_controller(controller);
-			self.disconnected_controller_users
-				.insert(controller, user_id);
+	fn unassign_device(&mut self, device: device::Id) {
+		if let Some(user_id) = self.device_to_user.remove(&device) {
+			self.users[user_id].remove_device(device);
+			self.disconnected_device_users.insert(device, user_id);
 			if cfg!(feature = "log") {
-				log::info!(target: "ReBound", "unassigning {} from user {}", controller, user_id);
+				log::info!(target: "ReBound", "unassigning {} from user {}", device, user_id);
 			}
 		}
 	}
@@ -199,11 +198,11 @@ impl System {
 	/// If user already has another gamepad or the gamepad was never previously connected,
 	/// then it is assigned to the first user without a gamepad.
 	fn connect_gamepad(&mut self, id: gilrs::GamepadId) {
-		let controller = ControllerId::Gamepad(self.get_gamepad_kind(&id), id);
+		let device = device::Id::Gamepad(self.get_gamepad_kind(&id), id);
 
-		if let Some(user_id) = self.disconnected_controller_users.remove(&controller) {
-			if !self.users[user_id].has_gamepad_controller() {
-				self.assign_controller(controller, user_id);
+		if let Some(user_id) = self.disconnected_device_users.remove(&device) {
+			if !self.users[user_id].has_gamepad_device() {
+				self.assign_device(device, user_id);
 				return;
 			}
 		}
@@ -211,24 +210,24 @@ impl System {
 		if let Some(user_id) = self
 			.users
 			.iter()
-			.position(|user| !user.has_gamepad_controller())
+			.position(|user| !user.has_gamepad_device())
 		{
-			self.assign_controller(controller, user_id);
+			self.assign_device(device, user_id);
 			return;
 		}
 
-		self.unassigned_controllers.push(controller);
+		self.unassigned_devices.push(device);
 	}
 
 	fn disconnect_gamepad(&mut self, id: gilrs::GamepadId) {
-		self.unassign_controller(ControllerId::Gamepad(self.get_gamepad_kind(&id), id));
+		self.unassign_device(device::Id::Gamepad(self.get_gamepad_kind(&id), id));
 	}
 
 	fn read_gamepad_events(&mut self) {
 		use gilrs::EventType;
 		use std::convert::TryFrom;
 		while let Some(gilrs::Event { id, event, time }) = self.gamepad_input.next_event() {
-			let controller = ControllerId::Gamepad(self.get_gamepad_kind(&id), id);
+			let device = device::Id::Gamepad(self.get_gamepad_kind(&id), id);
 			match event {
 				// Gamepad has been connected. If gamepad's UUID doesn't match one of disconnected gamepads,
 				// newly connected gamepad will get new ID.
@@ -241,7 +240,7 @@ impl System {
 				EventType::ButtonPressed(btn, _) => {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
-							controller,
+							device,
 							Event {
 								binding: Binding::GamepadButton(button),
 								state: EventState::ButtonState(crate::EventButtonState::Pressed),
@@ -254,7 +253,7 @@ impl System {
 				EventType::ButtonReleased(btn, _) => {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
-							controller,
+							device,
 							Event {
 								binding: Binding::GamepadButton(button),
 								state: EventState::ButtonState(EventButtonState::Released),
@@ -269,7 +268,7 @@ impl System {
 				EventType::ButtonChanged(btn, value, _) => {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
-							controller,
+							device,
 							Event {
 								binding: Binding::GamepadButton(button),
 								state: EventState::ValueChanged(value),
@@ -282,7 +281,7 @@ impl System {
 				EventType::AxisChanged(axis, value, _) => {
 					if let Some(axis) = Axis::try_from(axis).ok() {
 						self.process_event(
-							controller,
+							device,
 							Event {
 								binding: Binding::GamepadAxis(axis),
 								state: EventState::ValueChanged(value),
@@ -298,17 +297,17 @@ impl System {
 	pub fn send_event(&mut self, source: EventSource, event: Event) {
 		self.process_event(
 			match source {
-				EventSource::Mouse => ControllerId::Mouse,
-				EventSource::Keyboard => ControllerId::Keyboard,
+				EventSource::Mouse => device::Id::Mouse,
+				EventSource::Keyboard => device::Id::Keyboard,
 			},
 			event,
 			SystemTime::now(),
 		);
 	}
 
-	fn process_event(&mut self, controller: ControllerId, event: Event, time: SystemTime) {
+	fn process_event(&mut self, device: device::Id, event: Event, time: SystemTime) {
 		for event in self.parse_event(event) {
-			self.update_user_actions(controller, event, time);
+			self.update_user_actions(device, event, time);
 		}
 	}
 
@@ -340,10 +339,10 @@ impl System {
 		events
 	}
 
-	fn update_user_actions(&mut self, controller: ControllerId, event: Event, time: SystemTime) {
-		if let Some(user_id) = self.controller_to_user.get(&controller) {
+	fn update_user_actions(&mut self, device: device::Id, event: Event, time: SystemTime) {
+		if let Some(user_id) = self.device_to_user.get(&device) {
 			if let Some(user) = self.users.get_mut(*user_id) {
-				user.process_event(controller, &event, &time);
+				user.process_event(device, &event, &time);
 			}
 		}
 	}

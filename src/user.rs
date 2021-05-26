@@ -1,4 +1,4 @@
-use crate::{action, binding, Category, CategoryId, ControllerId, ControllerKind, Event, Layout};
+use crate::{action, binding, device, Category, CategoryId, Event, Layout};
 use std::{
 	collections::{HashMap, HashSet},
 	time::SystemTime,
@@ -6,7 +6,7 @@ use std::{
 
 #[derive(Debug, Clone)]
 pub struct User {
-	controllers: HashSet<ControllerId>,
+	devices: HashSet<device::Id>,
 	active_layout: Option<Layout>,
 	enabled_categories: HashMap<Option<CategoryId>, Category>,
 	bound_actions: HashMap<BindingStateKey, (action::Id, binding::Behavior)>,
@@ -18,14 +18,14 @@ pub struct User {
 struct BindingStateKey {
 	category: Option<CategoryId>,
 	layout: Option<Layout>,
-	controller_kind: ControllerKind,
+	device_kind: device::Kind,
 	binding: binding::Binding,
 }
 
 impl Default for User {
 	fn default() -> Self {
 		Self {
-			controllers: HashSet::new(),
+			devices: HashSet::new(),
 			active_layout: None,
 			enabled_categories: HashMap::new(),
 			bound_actions: HashMap::new(),
@@ -51,17 +51,17 @@ impl User {
 		}
 	}
 
-	pub(crate) fn add_controller(&mut self, controller: ControllerId) {
-		self.controllers.insert(controller);
+	pub(crate) fn add_device(&mut self, device: device::Id) {
+		self.devices.insert(device);
 	}
 
-	pub(crate) fn remove_controller(&mut self, controller: ControllerId) {
-		self.controllers.remove(&controller);
+	pub(crate) fn remove_device(&mut self, device: device::Id) {
+		self.devices.remove(&device);
 	}
 
-	pub fn has_gamepad_controller(&self) -> bool {
-		self.controllers.iter().any(|id| match id {
-			ControllerId::Gamepad(_, _) => true,
+	pub fn has_gamepad_device(&self) -> bool {
+		self.devices.iter().any(|id| match id {
+			device::Id::Gamepad(_, _) => true,
 			_ => false,
 		})
 	}
@@ -94,13 +94,13 @@ impl User {
 		{
 			for (action_id, behavior_list) in action_binding_map.0.iter() {
 				if let Some(action) = actions.get(action_id) {
-					for (controller_kind, behaviors) in behavior_list {
+					for (device_kind, behaviors) in behavior_list {
 						for behavior in behaviors {
 							self.bound_actions.insert(
 								BindingStateKey {
 									category: category_id,
 									layout: self.active_layout,
-									controller_kind: *controller_kind,
+									device_kind: *device_kind,
 									binding: behavior.binding,
 								},
 								(action_id, *behavior),
@@ -135,15 +135,10 @@ impl User {
 		}
 	}
 
-	pub(crate) fn process_event(
-		&mut self,
-		controller: ControllerId,
-		event: &Event,
-		time: &SystemTime,
-	) {
+	pub(crate) fn process_event(&mut self, device: device::Id, event: &Event, time: &SystemTime) {
 		let mut matched_action_ids = Vec::new();
 		for (key, action_id) in self.bound_actions.iter() {
-			if key.controller_kind == controller.into() && key.binding == event.binding {
+			if key.device_kind == device.into() && key.binding == event.binding {
 				matched_action_ids.push(action_id);
 			}
 		}

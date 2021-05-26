@@ -1,7 +1,7 @@
-use crate::{action, binding, ControllerKind};
+use crate::{action, binding, device};
 use std::collections::HashMap;
 
-pub type BindingList = HashMap<ControllerKind, Vec<binding::Behavior>>;
+pub type BindingList = HashMap<device::Kind, Vec<binding::Behavior>>;
 
 #[derive(Debug, Clone)]
 pub struct BindingMap(pub(crate) HashMap<action::Id, BindingList>);
@@ -16,16 +16,16 @@ impl BindingMap {
 	pub fn bind(
 		mut self,
 		action: action::Id,
-		bindings: &[(ControllerKind, binding::Behavior)],
+		bindings: &[(device::Kind, binding::Behavior)],
 	) -> Self {
-		let mut controllers = HashMap::new();
+		let mut devices = HashMap::new();
 		for (kind, binding) in bindings {
-			if !controllers.contains_key(kind) {
-				controllers.insert(*kind, Vec::new());
+			if !devices.contains_key(kind) {
+				devices.insert(*kind, Vec::new());
 			}
-			controllers.get_mut(kind).unwrap().push(binding.clone());
+			devices.get_mut(kind).unwrap().push(binding.clone());
 		}
-		self.0.insert(action, controllers);
+		self.0.insert(action, devices);
 		self
 	}
 }
