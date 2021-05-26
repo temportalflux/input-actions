@@ -6,13 +6,6 @@ pub enum EventButtonState {
 	Released,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum MouseButton {
-	Left,
-	Center,
-	Right,
-}
-
 pub enum EventSource {
 	Mouse,
 	Keyboard,

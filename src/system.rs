@@ -1,6 +1,8 @@
 use crate::{
-	binding::Binding, Action, ActionId, Axis, Button, Category, CategoryId, ControllerId, Event,
-	EventButtonState, EventSource, EventState, GamepadKind, Layout, User,
+	binding::Binding,
+	source::{Axis, Button},
+	Action, ActionId, Category, CategoryId, ControllerId, Event, EventButtonState, EventSource,
+	EventState, GamepadKind, Layout, User,
 };
 use std::{
 	collections::HashMap,

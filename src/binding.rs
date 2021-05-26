@@ -1,4 +1,7 @@
-use crate::{Axis, Button, Event, EventState, Key, MouseButton};
+use crate::{
+	source::{Axis, Button, Key, MouseButton},
+	Event, EventState,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Binding {

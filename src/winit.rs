@@ -1,4 +1,8 @@
-use crate::{binding::Binding, Event, EventButtonState, EventSource, EventState, Key, MouseButton};
+use crate::{
+	binding::Binding,
+	source::{Key, MouseButton},
+	Event, EventButtonState, EventSource, EventState,
+};
 use std::convert::{TryFrom, TryInto};
 use winit::event::VirtualKeyCode;
 
