@@ -3,15 +3,12 @@ use std::collections::HashMap;
 
 pub type BindingList = HashMap<ControllerKind, Vec<Binding>>;
 
-pub struct ActionBindingMap {
-	bindings: HashMap<ActionId, BindingList>,
-}
+#[derive(Debug, Clone)]
+pub struct ActionBindingMap(pub(crate) HashMap<ActionId, BindingList>);
 
 impl Default for ActionBindingMap {
 	fn default() -> Self {
-		Self {
-			bindings: HashMap::new(),
-		}
+		Self(HashMap::new())
 	}
 }
 
@@ -24,7 +21,7 @@ impl ActionBindingMap {
 			}
 			controllers.get_mut(kind).unwrap().push(binding.clone());
 		}
-		self.bindings.insert(action, controllers);
+		self.0.insert(action, controllers);
 		self
 	}
 }

@@ -10,11 +10,7 @@ pub enum Axis {
 	/// The y-axis of the right thumbstick.
 	RThumbstickY,
 
-	/// - PS4 & Xbox
-	/// - Switch uses [`Button::LTrigger`](crate::Button::LTrigger)
 	LTrigger,
-	/// - PS4 & Xbox
-	/// - Switch uses [`Button::RTrigger`](crate::Button::RTrigger)
 	RTrigger,
 }
 
@@ -27,8 +23,8 @@ impl std::convert::TryFrom<gilrs::Axis> for Axis {
 			gilrs::Axis::RightStickX => Ok(Axis::RThumbstickX),
 			gilrs::Axis::RightStickY => Ok(Axis::RThumbstickY),
 
-			gilrs::Axis::LeftZ => Err(()),
-			gilrs::Axis::RightZ => Err(()),
+			gilrs::Axis::LeftZ => Ok(Axis::LTrigger),
+			gilrs::Axis::RightZ => Ok(Axis::RTrigger),
 
 			gilrs::Axis::DPadX => Err(()),
 			gilrs::Axis::DPadY => Err(()),

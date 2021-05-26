@@ -27,7 +27,7 @@ pub enum Button {
 	/// - PS4 case 2: [`Circle`](Button::FaceRight)
 	/// - Xbox: [`A`](Button::FaceBottom)
 	/// - Switch: [`A`](Button::FaceRight)
-	VirtualConfirmPrimary,
+	VirtualConfirm,
 	/// The button used for confirmation/approval.
 	/// This is a virtual wrapper based on the console.
 	/// - PS4 case 1: [`X`](Button::FaceRight)
@@ -49,11 +49,7 @@ pub enum Button {
 	LShoulder,
 	RShoulder,
 
-	/// - Switch: the trigger is a button not an axis
-	/// - PS4 & XBox use [`Axis::LTrigger`](crate::Axis::LTrigger)
 	LTrigger,
-	/// - Switch: the trigger is a button not an axis
-	/// - PS4 & XBox use [`Axis::RTrigger`](crate::Axis::RTrigger)
 	RTrigger,
 
 	/// - PS4: Trackpad
@@ -83,9 +79,9 @@ impl std::convert::TryFrom<gilrs::Button> for Button {
 			gilrs::Button::Z => Err(()),
 			// Triggers
 			gilrs::Button::LeftTrigger => Ok(Button::LTrigger),
-			gilrs::Button::LeftTrigger2 => Err(()),
+			gilrs::Button::LeftTrigger2 => Ok(Button::LTrigger),
 			gilrs::Button::RightTrigger => Ok(Button::RTrigger),
-			gilrs::Button::RightTrigger2 => Err(()),
+			gilrs::Button::RightTrigger2 => Ok(Button::RTrigger),
 			// Menu Pad
 			gilrs::Button::Select => Ok(Button::LSpecial),
 			gilrs::Button::Start => Ok(Button::RSpecial),

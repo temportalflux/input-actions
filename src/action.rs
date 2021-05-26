@@ -1,6 +1,6 @@
 use crate::ActionBehavior;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActionKind {
 	Button,
 	Axis,
@@ -10,8 +10,8 @@ pub type ActionId = &'static str;
 
 #[derive(Clone)]
 pub struct Action {
-	kind: ActionKind,
-	behavior: ActionBehavior,
+	pub(crate) kind: ActionKind,
+	pub(crate) behavior: ActionBehavior,
 }
 
 impl Action {

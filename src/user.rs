@@ -1,62 +1,153 @@
 use crate::{
-	Binding, BindingState, CategoryId, ControllerId, ControllerKind, ControllerState, Layout,
+	Action, ActionId, ActionState, Binding, Category, CategoryId, ControllerId, ControllerKind,
+	Event, Layout,
 };
 use std::collections::{HashMap, HashSet};
 
-#[derive(Clone)]
-pub struct User {
+#[derive(Debug, Clone)]
+pub(crate) struct User {
+	controllers: HashSet<ControllerId>,
 	active_layout: Option<Layout>,
-	enabled_categories: HashSet<CategoryId>,
-	controller_states: HashMap<ControllerId, ControllerState>,
+	enabled_categories: HashMap<Option<CategoryId>, Category>,
+	bound_actions: HashMap<BindingStateKey, ActionId>,
+	action_states: HashMap<ActionId, ActionState>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct BindingStateKey {
+	category: Option<CategoryId>,
+	layout: Option<Layout>,
+	controller_kind: ControllerKind,
+	binding: Binding,
 }
 
 impl Default for User {
 	fn default() -> Self {
 		Self {
+			controllers: HashSet::new(),
 			active_layout: None,
-			enabled_categories: HashSet::new(),
-			controller_states: HashMap::new(),
+			enabled_categories: HashMap::new(),
+			bound_actions: HashMap::new(),
+			action_states: HashMap::new(),
 		}
 	}
 }
 
 impl User {
-	pub fn set_layout(&mut self, layout: Option<Layout>) {
+	pub fn set_layout(&mut self, layout: Option<Layout>, actions: &HashMap<ActionId, Action>) {
 		self.active_layout = layout;
-	}
-
-	pub fn set_category_enabled(&mut self, category: CategoryId, enabled: bool) {
-		if enabled {
-			self.enabled_categories.insert(category);
-		} else {
-			self.enabled_categories.remove(category);
+		self.bound_actions.clear();
+		self.action_states.clear();
+		let category_ids = self.enabled_categories.keys().cloned().collect::<Vec<_>>();
+		for category_id in category_ids {
+			self.add_action_states(category_id, actions);
 		}
 	}
 
-	pub(crate) fn add_controller(&mut self, controller: ControllerId) {
-		self.controller_states
-			.insert(controller, ControllerState::default());
+	pub fn add_controller(&mut self, controller: ControllerId) {
+		self.controllers.insert(controller);
 	}
 
-	pub(crate) fn remove_controller(&mut self, controller: ControllerId) {
-		self.controller_states.remove(&controller);
+	pub fn remove_controller(&mut self, controller: ControllerId) {
+		self.controllers.remove(&controller);
 	}
 
-	pub(crate) fn has_gamepad_controller(&self) -> bool {
-		self.controller_states.keys().any(|id| match id {
+	pub fn has_gamepad_controller(&self) -> bool {
+		self.controllers.iter().any(|id| match id {
 			ControllerId::Gamepad(_, _) => true,
 			_ => false,
 		})
 	}
 
-	pub(crate) fn set_binding_state(
+	pub fn enable_category(
+		&mut self,
+		id: Option<CategoryId>,
+		category: &Category,
+		actions: &HashMap<ActionId, Action>,
+	) {
+		self.enabled_categories.insert(id, category.clone());
+		self.add_action_states(id, actions);
+	}
+
+	pub fn disable_category(&mut self, id: Option<CategoryId>) {
+		self.enabled_categories.remove(&id);
+		self.remove_action_states(&id);
+	}
+
+	fn add_action_states(
+		&mut self,
+		category_id: Option<CategoryId>,
+		actions: &HashMap<ActionId, Action>,
+	) {
+		if let Some(action_binding_map) = self
+			.enabled_categories
+			.get(&category_id)
+			.unwrap()
+			.binding_maps
+			.get(&self.active_layout)
+		{
+			for (action_id, binding_list) in action_binding_map.0.iter() {
+				if let Some(action) = actions.get(action_id) {
+					for (controller_kind, bindings) in binding_list {
+						for binding in bindings {
+							self.bound_actions.insert(
+								BindingStateKey {
+									category: category_id,
+									layout: self.active_layout,
+									controller_kind: *controller_kind,
+									binding: *binding,
+								},
+								action_id,
+							);
+						}
+					}
+					self.action_states
+						.insert(action_id, ActionState::new(action.clone()));
+				}
+			}
+		}
+	}
+
+	fn remove_action_states(&mut self, category_id: &Option<CategoryId>) {
+		// TODO: Can use `drain_filter` (https://github.com/rust-lang/rust/issues/59618) when stablized
+		let mut retained_actions = HashMap::new();
+		let mut removed_actions = HashMap::new();
+		for (bound_state_key, action_id) in self.bound_actions.drain() {
+			if bound_state_key.category == *category_id {
+				removed_actions.insert(bound_state_key, action_id);
+			} else {
+				retained_actions.insert(bound_state_key, action_id);
+			}
+		}
+		self.bound_actions = retained_actions;
+		self.action_states = self
+			.action_states
+			.drain()
+			.filter(|(id, _)| {
+				removed_actions
+					.values()
+					.find(|action_id| **action_id == *id)
+					.is_none()
+			})
+			.collect();
+	}
+
+	pub fn process_event(
 		&mut self,
 		controller: ControllerId,
-		binding: Binding,
-		state: BindingState,
+		event: &Event,
+		time: &std::time::SystemTime,
 	) {
-		if let Some(controller_state) = self.controller_states.get_mut(&controller) {
-			controller_state.set_binding_state(binding, state);
+		let mut matched_action_ids = Vec::new();
+		for (key, action_id) in self.bound_actions.iter() {
+			if key.controller_kind == controller.into() && key.binding == event.binding {
+				matched_action_ids.push(action_id);
+			}
+		}
+		for action_id in matched_action_ids {
+			if let Some(state) = self.action_states.get_mut(action_id) {
+				state.process_event(event.state.clone(), &time);
+			}
 		}
 	}
 }

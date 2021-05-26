@@ -1,12 +1,12 @@
-use crate::{Axis, Button, Key};
+use crate::Binding;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventButtonState {
 	Pressed,
 	Released,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MouseButton {
 	Left,
 	Center,
@@ -18,13 +18,16 @@ pub enum EventSource {
 	Keyboard,
 }
 
-#[derive(Debug)]
-pub enum Event {
-	MouseButton(MouseButton, EventButtonState),
+#[derive(Debug, Clone)]
+pub struct Event {
+	pub binding: Binding,
+	pub state: EventState,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum EventState {
+	ButtonState(EventButtonState),
 	MouseMove(/*delta pixels x*/ f64, /*delta pixels y*/ f64),
 	MouseScroll(f32, f32),
-	KeyboardKey(Key, EventButtonState),
-	GamepadButtonState(Button, EventButtonState),
-	GamepadButtonChanged(Button, f32),
-	GamepadAxisChanged(Axis, f32),
+	ValueChanged(f32),
 }

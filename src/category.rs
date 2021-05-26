@@ -4,8 +4,9 @@ use std::collections::HashMap;
 pub type Layout = &'static str;
 pub type CategoryId = &'static str;
 
+#[derive(Debug, Clone)]
 pub struct Category {
-	binding_maps: HashMap<Option<Layout>, ActionBindingMap>,
+	pub(crate) binding_maps: HashMap<Option<Layout>, ActionBindingMap>,
 }
 
 impl Default for Category {

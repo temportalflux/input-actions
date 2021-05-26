@@ -1,6 +1,6 @@
 use crate::{
-	Action, ActionId, Category, CategoryId, ControllerId, Event, EventSource, GamepadKind, Layout,
-	User,
+	Action, ActionId, Axis, Binding, Button, Category, CategoryId, ControllerId, Event,
+	EventButtonState, EventSource, EventState, GamepadKind, Layout, User,
 };
 use std::{
 	collections::HashMap,
@@ -29,9 +29,10 @@ type UserId = usize;
 pub struct System {
 	gamepad_input: gilrs::Gilrs,
 	users: Vec<User>,
-	actions: HashMap<String, Action>,
+	actions: HashMap<ActionId, Action>,
 	layouts: Vec<Layout>,
 	categories: HashMap<Option<CategoryId>, Category>,
+	unassigned_controllers: Vec<ControllerId>,
 	controller_to_user: HashMap<ControllerId, UserId>,
 	disconnected_controller_users: HashMap<ControllerId, UserId>,
 }
@@ -44,6 +45,7 @@ impl System {
 			actions: HashMap::new(),
 			layouts: Vec::new(),
 			categories: HashMap::new(),
+			unassigned_controllers: vec![ControllerId::Mouse, ControllerId::Keyboard],
 			controller_to_user: HashMap::new(),
 			disconnected_controller_users: HashMap::new(),
 		}
@@ -77,21 +79,14 @@ impl System {
 		self
 	}
 
-	pub fn set_user_count(&mut self, count: usize) -> &mut Self {
-		self.users.resize(count, User::default());
-		if !self.users.is_empty() {
-			self.assign_controller(ControllerId::Mouse, 0);
-			self.assign_controller(ControllerId::Keyboard, 0);
-		}
+	pub fn add_users(&mut self, count: usize) -> &mut Self {
+		self.users.extend((0..count).map(|_| User::default()));
+		self.assign_unused_controllers();
 		self
 	}
 
-	pub fn user(&mut self, id: usize) -> Option<&mut User> {
-		self.users.get_mut(id)
-	}
-
 	pub fn add_action(&mut self, name: ActionId, action: Action) -> &mut Self {
-		self.actions.insert(name.to_owned(), action);
+		self.actions.insert(name, action);
 		self
 	}
 
@@ -103,6 +98,66 @@ impl System {
 	pub fn add_map_category(&mut self, id: Option<CategoryId>, category: Category) -> &mut Self {
 		self.categories.insert(id, category);
 		self
+	}
+
+	pub fn set_user_layout(&mut self, user_id: UserId, layout: Option<Layout>) -> &mut Self {
+		if let Some(user) = self.users.get_mut(user_id) {
+			user.set_layout(layout, &self.actions);
+		}
+		self
+	}
+
+	pub fn set_category_enabled(
+		&mut self,
+		user_id: UserId,
+		category_id: Option<CategoryId>,
+		enabled: bool,
+	) -> &mut Self {
+		if let Some(user) = self.users.get_mut(user_id) {
+			if enabled {
+				if let Some(category) = self.categories.get(&category_id) {
+					user.enable_category(category_id, category, &self.actions);
+				}
+			} else {
+				user.disable_category(category_id);
+			}
+		}
+		self
+	}
+
+	pub fn enable_category_for_all(&mut self, category_id: Option<CategoryId>) -> &mut Self {
+		if let Some(category) = self.categories.get(&category_id) {
+			for user in self.users.iter_mut() {
+				user.enable_category(category_id, category, &self.actions);
+			}
+		}
+		self
+	}
+
+	fn assign_unused_controllers(&mut self) {
+		let unused_controllers = self.unassigned_controllers.drain(..).collect::<Vec<_>>();
+		for controller in unused_controllers {
+			match controller {
+				ControllerId::Mouse | ControllerId::Keyboard => {
+					if let Some(first_user_id) = self.users.iter().position(|_| true) {
+						self.assign_controller(controller, first_user_id);
+					} else {
+						self.unassigned_controllers.push(controller);
+					}
+				}
+				ControllerId::Gamepad(_, _) => {
+					if let Some(user_id) = self
+						.users
+						.iter()
+						.position(|user| !user.has_gamepad_controller())
+					{
+						self.assign_controller(controller, user_id);
+					} else {
+						self.unassigned_controllers.push(controller);
+					}
+				}
+			}
+		}
 	}
 
 	fn assign_controller(&mut self, controller: ControllerId, user_id: UserId) {
@@ -140,8 +195,7 @@ impl System {
 	/// If user already has another gamepad or the gamepad was never previously connected,
 	/// then it is assigned to the first user without a gamepad.
 	fn connect_gamepad(&mut self, id: gilrs::GamepadId) {
-		let gamepad_kind = self.get_gamepad_kind(&id);
-		let controller = ControllerId::Gamepad(gamepad_kind, id);
+		let controller = ControllerId::Gamepad(self.get_gamepad_kind(&id), id);
 
 		if let Some(user_id) = self.disconnected_controller_users.remove(&controller) {
 			if !self.users[user_id].has_gamepad_controller() {
@@ -156,20 +210,20 @@ impl System {
 			.position(|user| !user.has_gamepad_controller())
 		{
 			self.assign_controller(controller, user_id);
+			return;
 		}
+
+		self.unassigned_controllers.push(controller);
 	}
 
 	fn disconnect_gamepad(&mut self, id: gilrs::GamepadId) {
-		let gamepad_kind = self.get_gamepad_kind(&id);
-		let controller = ControllerId::Gamepad(gamepad_kind, id);
-		self.unassign_controller(controller);
+		self.unassign_controller(ControllerId::Gamepad(self.get_gamepad_kind(&id), id));
 	}
 
 	pub fn read_gamepad_events(&mut self) {
-		use crate::{Axis, Button};
-		use gilrs::{Event, EventType};
+		use gilrs::EventType;
 		use std::convert::TryFrom;
-		while let Some(Event { id, event, time }) = self.gamepad_input.next_event() {
+		while let Some(gilrs::Event { id, event, time }) = self.gamepad_input.next_event() {
 			let controller = ControllerId::Gamepad(self.get_gamepad_kind(&id), id);
 			match event {
 				// Gamepad has been connected. If gamepad's UUID doesn't match one of disconnected gamepads,
@@ -184,10 +238,10 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							controller,
-							crate::Event::GamepadButtonState(
-								button,
-								crate::EventButtonState::Pressed,
-							),
+							Event {
+								binding: Binding::GamepadButton(button),
+								state: EventState::ButtonState(crate::EventButtonState::Pressed),
+							},
 							time,
 						);
 					}
@@ -197,10 +251,10 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							controller,
-							crate::Event::GamepadButtonState(
-								button,
-								crate::EventButtonState::Released,
-							),
+							Event {
+								binding: Binding::GamepadButton(button),
+								state: EventState::ButtonState(EventButtonState::Released),
+							},
 							time,
 						);
 					}
@@ -212,7 +266,10 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							controller,
-							crate::Event::GamepadButtonChanged(button, value),
+							Event {
+								binding: Binding::GamepadButton(button),
+								state: EventState::ValueChanged(value),
+							},
 							time,
 						);
 					}
@@ -222,7 +279,10 @@ impl System {
 					if let Some(axis) = Axis::try_from(axis).ok() {
 						self.process_event(
 							controller,
-							crate::Event::GamepadAxisChanged(axis, value),
+							Event {
+								binding: Binding::GamepadAxis(axis),
+								state: EventState::ValueChanged(value),
+							},
 							time,
 						);
 					}
@@ -248,5 +308,49 @@ impl System {
 		event: Event,
 		time: std::time::SystemTime,
 	) {
+		for event in self.parse_event(event) {
+			self.update_user_actions(controller, event, time);
+		}
+	}
+
+	fn parse_event(&mut self, event: Event) -> Vec<Event> {
+		// Based on the platform and the event, we may need to split the event into multiple events.
+		// For example: the bottom and right face buttons on a gamepad may need to also trigger
+		// `Button::VirtualConfirm` or `Button::VirtualDeny` in addition to the original button.
+		let mut events = vec![event.clone()];
+		if let Event {
+			binding: Binding::GamepadButton(Button::FaceBottom),
+			..
+		} = event
+		{
+			events.push(Event {
+				binding: Binding::GamepadButton(Button::VirtualConfirm),
+				..event
+			});
+		}
+		if let Event {
+			binding: Binding::GamepadButton(Button::FaceRight),
+			..
+		} = event
+		{
+			events.push(Event {
+				binding: Binding::GamepadButton(Button::VirtualDeny),
+				..event
+			});
+		}
+		events
+	}
+
+	fn update_user_actions(
+		&mut self,
+		controller: ControllerId,
+		event: Event,
+		time: std::time::SystemTime,
+	) {
+		if let Some(user_id) = self.controller_to_user.get(&controller) {
+			if let Some(user) = self.users.get_mut(*user_id) {
+				user.process_event(controller, &event, &time);
+			}
+		}
 	}
 }
