@@ -1,4 +1,4 @@
-use crate::{action, Event, EventButtonState, EventState};
+use crate::{action, event};
 use std::time::SystemTime;
 
 #[derive(Debug, Clone)]
@@ -22,15 +22,15 @@ impl State {
 		}
 	}
 
-	pub fn process_event(&mut self, event: Event, time: &SystemTime) {
+	pub fn process_event(&mut self, event: event::Event, time: &SystemTime) {
 		if match event.state {
-			EventState::ButtonState(btn_state) => {
-				self.active = btn_state == EventButtonState::Pressed;
+			event::State::ButtonState(btn_state) => {
+				self.active = btn_state == event::ButtonState::Pressed;
 				true
 			}
-			EventState::MouseMove(_x, _y) => false,
-			EventState::MouseScroll(_x, _y) => false,
-			EventState::ValueChanged(value) => {
+			event::State::MouseMove(_x, _y) => false,
+			event::State::MouseScroll(_x, _y) => false,
+			event::State::ValueChanged(value) => {
 				if self.kind == action::Kind::Axis {
 					if !event.binding.is_axis() {
 						// TODO: Handle digitial axis

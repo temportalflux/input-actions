@@ -1,6 +1,6 @@
 use crate::{
+	event,
 	source::{Axis, Button, Key, MouseButton},
-	Event, EventState,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -41,13 +41,13 @@ impl Behavior {
 		}
 	}
 
-	pub(crate) fn apply(&self, event: Event) -> Event {
+	pub(crate) fn apply(&self, event: event::Event) -> event::Event {
 		let mut event = event;
 		match &mut event.state {
-			EventState::ButtonState(_btn_state) => {}
-			EventState::MouseMove(_x, _y) => {}
-			EventState::MouseScroll(_x, _y) => {}
-			EventState::ValueChanged(value) => *value *= self.modifier,
+			event::State::ButtonState(_btn_state) => {}
+			event::State::MouseMove(_x, _y) => {}
+			event::State::MouseScroll(_x, _y) => {}
+			event::State::ValueChanged(value) => *value *= self.modifier,
 		}
 		event
 	}

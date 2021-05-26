@@ -1,4 +1,4 @@
-use crate::{action, binding, device, Category, CategoryId, Event, Layout};
+use crate::{action, binding, device, event, Category, CategoryId, Layout};
 use std::{
 	collections::{HashMap, HashSet},
 	time::SystemTime,
@@ -135,7 +135,12 @@ impl User {
 		}
 	}
 
-	pub(crate) fn process_event(&mut self, device: device::Id, event: &Event, time: &SystemTime) {
+	pub(crate) fn process_event(
+		&mut self,
+		device: device::Id,
+		event: &event::Event,
+		time: &SystemTime,
+	) {
 		let mut matched_action_ids = Vec::new();
 		for (key, action_id) in self.bound_actions.iter() {
 			if key.device_kind == device.into() && key.binding == event.binding {

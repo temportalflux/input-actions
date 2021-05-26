@@ -5,7 +5,7 @@ pub struct Behavior {
 	pub digital_axis: Option<DigitalAxis>,
 }
 
-/// For [`Button`](crate::Binding::is_button) events bound to [`Axis`](ActionKind::Axis) actions.
+/// For [`Button`](crate::binding::Binding::is_button) events bound to [`Axis`](crate::action::Kind::Axis) actions.
 #[derive(Debug, Clone)]
 pub struct DigitalAxis {
 	reverse: Option<DigitalAxisReverse>,

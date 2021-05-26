@@ -2,8 +2,9 @@ use crate::{
 	action,
 	binding::Binding,
 	device::{self, GamepadKind},
+	event,
 	source::{Axis, Button},
-	Category, CategoryId, Event, EventButtonState, EventSource, EventState, Layout, User,
+	Category, CategoryId, Layout, User,
 };
 use std::{
 	collections::HashMap,
@@ -241,9 +242,9 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							device,
-							Event {
+							event::Event {
 								binding: Binding::GamepadButton(button),
-								state: EventState::ButtonState(crate::EventButtonState::Pressed),
+								state: event::State::ButtonState(event::ButtonState::Pressed),
 							},
 							time,
 						);
@@ -254,9 +255,9 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							device,
-							Event {
+							event::Event {
 								binding: Binding::GamepadButton(button),
-								state: EventState::ButtonState(EventButtonState::Released),
+								state: event::State::ButtonState(event::ButtonState::Released),
 							},
 							time,
 						);
@@ -269,9 +270,9 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							device,
-							Event {
+							event::Event {
 								binding: Binding::GamepadButton(button),
-								state: EventState::ValueChanged(value),
+								state: event::State::ValueChanged(value),
 							},
 							time,
 						);
@@ -282,9 +283,9 @@ impl System {
 					if let Some(axis) = Axis::try_from(axis).ok() {
 						self.process_event(
 							device,
-							Event {
+							event::Event {
 								binding: Binding::GamepadAxis(axis),
-								state: EventState::ValueChanged(value),
+								state: event::State::ValueChanged(value),
 							},
 							time,
 						);
@@ -294,44 +295,44 @@ impl System {
 		}
 	}
 
-	pub fn send_event(&mut self, source: EventSource, event: Event) {
+	pub fn send_event(&mut self, source: event::Source, event: event::Event) {
 		self.process_event(
 			match source {
-				EventSource::Mouse => device::Id::Mouse,
-				EventSource::Keyboard => device::Id::Keyboard,
+				event::Source::Mouse => device::Id::Mouse,
+				event::Source::Keyboard => device::Id::Keyboard,
 			},
 			event,
 			SystemTime::now(),
 		);
 	}
 
-	fn process_event(&mut self, device: device::Id, event: Event, time: SystemTime) {
+	fn process_event(&mut self, device: device::Id, event: event::Event, time: SystemTime) {
 		for event in self.parse_event(event) {
 			self.update_user_actions(device, event, time);
 		}
 	}
 
-	fn parse_event(&mut self, event: Event) -> Vec<Event> {
+	fn parse_event(&mut self, event: event::Event) -> Vec<event::Event> {
 		// Based on the platform and the event, we may need to split the event into multiple events.
 		// For example: the bottom and right face buttons on a gamepad may need to also trigger
 		// `Button::VirtualConfirm` or `Button::VirtualDeny` in addition to the original button.
 		let mut events = vec![event.clone()];
-		if let Event {
+		if let event::Event {
 			binding: Binding::GamepadButton(Button::FaceBottom),
 			..
 		} = event
 		{
-			events.push(Event {
+			events.push(event::Event {
 				binding: Binding::GamepadButton(Button::VirtualConfirm),
 				..event
 			});
 		}
-		if let Event {
+		if let event::Event {
 			binding: Binding::GamepadButton(Button::FaceRight),
 			..
 		} = event
 		{
-			events.push(Event {
+			events.push(event::Event {
 				binding: Binding::GamepadButton(Button::VirtualDeny),
 				..event
 			});
@@ -339,7 +340,7 @@ impl System {
 		events
 	}
 
-	fn update_user_actions(&mut self, device: device::Id, event: Event, time: SystemTime) {
+	fn update_user_actions(&mut self, device: device::Id, event: event::Event, time: SystemTime) {
 		if let Some(user_id) = self.device_to_user.get(&device) {
 			if let Some(user) = self.users.get_mut(*user_id) {
 				user.process_event(device, &event, &time);
