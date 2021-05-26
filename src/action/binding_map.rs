@@ -1,21 +1,21 @@
-use crate::{binding, ActionId, ControllerKind};
+use crate::{action, binding, ControllerKind};
 use std::collections::HashMap;
 
 pub type BindingList = HashMap<ControllerKind, Vec<binding::Behavior>>;
 
 #[derive(Debug, Clone)]
-pub struct ActionBindingMap(pub(crate) HashMap<ActionId, BindingList>);
+pub struct BindingMap(pub(crate) HashMap<action::Id, BindingList>);
 
-impl Default for ActionBindingMap {
+impl Default for BindingMap {
 	fn default() -> Self {
 		Self(HashMap::new())
 	}
 }
 
-impl ActionBindingMap {
+impl BindingMap {
 	pub fn bind(
 		mut self,
-		action: ActionId,
+		action: action::Id,
 		bindings: &[(ControllerKind, binding::Behavior)],
 	) -> Self {
 		let mut controllers = HashMap::new();

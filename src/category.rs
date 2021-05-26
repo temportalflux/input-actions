@@ -1,25 +1,25 @@
-use crate::ActionBindingMap;
+use crate::action::BindingMap;
 use std::collections::HashMap;
 
 pub type Layout = &'static str;
 pub type CategoryId = &'static str;
 
 #[derive(Debug, Clone)]
-pub struct Category {
-	pub(crate) binding_maps: HashMap<Option<Layout>, ActionBindingMap>,
-}
+pub struct Category(HashMap<Option<Layout>, BindingMap>);
 
 impl Default for Category {
 	fn default() -> Self {
-		Self {
-			binding_maps: HashMap::new(),
-		}
+		Self(HashMap::new())
 	}
 }
 
 impl Category {
-	pub fn with(mut self, layout: Option<Layout>, map: ActionBindingMap) -> Self {
-		self.binding_maps.insert(layout, map);
+	pub fn with(mut self, layout: Option<Layout>, map: BindingMap) -> Self {
+		self.0.insert(layout, map);
 		self
+	}
+
+	pub fn get(&self, layout: &Option<Layout>) -> Option<&BindingMap> {
+		self.0.get(layout)
 	}
 }

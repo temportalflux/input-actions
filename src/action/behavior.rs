@@ -1,7 +1,7 @@
-pub static ACTION_BEHAVIOR_DEFAULT_BUTTON: ActionBehavior = ActionBehavior { digital_axis: None };
+pub static ACTION_BEHAVIOR_DEFAULT_BUTTON: Behavior = Behavior { digital_axis: None };
 
 #[derive(Debug, Clone)]
-pub struct ActionBehavior {
+pub struct Behavior {
 	pub digital_axis: Option<DigitalAxis>,
 }
 
@@ -24,7 +24,7 @@ pub enum DigitalAxisReverse {
 	InstantReverse,
 }
 
-impl Default for ActionBehavior {
+impl Default for Behavior {
 	fn default() -> Self {
 		Self { digital_axis: None }
 	}

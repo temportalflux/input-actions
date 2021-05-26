@@ -1,20 +1,17 @@
-use crate::{
-	binding, Action, ActionId, ActionState, Category, CategoryId, ControllerId, ControllerKind,
-	Event, Layout,
-};
+use crate::{action, binding, Category, CategoryId, ControllerId, ControllerKind, Event, Layout};
 use std::{
 	collections::{HashMap, HashSet},
 	time::SystemTime,
 };
 
 #[derive(Debug, Clone)]
-pub(crate) struct User {
+pub struct User {
 	controllers: HashSet<ControllerId>,
 	active_layout: Option<Layout>,
 	enabled_categories: HashMap<Option<CategoryId>, Category>,
-	bound_actions: HashMap<BindingStateKey, (ActionId, binding::Behavior)>,
-	action_states: HashMap<ActionId, ActionState>,
-	ticking_states: HashSet<ActionId>,
+	bound_actions: HashMap<BindingStateKey, (action::Id, binding::Behavior)>,
+	action_states: HashMap<action::Id, action::State>,
+	ticking_states: HashSet<action::Id>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -39,7 +36,11 @@ impl Default for User {
 }
 
 impl User {
-	pub fn set_layout(&mut self, layout: Option<Layout>, actions: &HashMap<ActionId, Action>) {
+	pub fn set_layout(
+		&mut self,
+		layout: Option<Layout>,
+		actions: &HashMap<action::Id, action::Action>,
+	) {
 		self.active_layout = layout;
 		self.bound_actions.clear();
 		self.action_states.clear();
@@ -50,11 +51,11 @@ impl User {
 		}
 	}
 
-	pub fn add_controller(&mut self, controller: ControllerId) {
+	pub(crate) fn add_controller(&mut self, controller: ControllerId) {
 		self.controllers.insert(controller);
 	}
 
-	pub fn remove_controller(&mut self, controller: ControllerId) {
+	pub(crate) fn remove_controller(&mut self, controller: ControllerId) {
 		self.controllers.remove(&controller);
 	}
 
@@ -69,7 +70,7 @@ impl User {
 		&mut self,
 		id: Option<CategoryId>,
 		category: &Category,
-		actions: &HashMap<ActionId, Action>,
+		actions: &HashMap<action::Id, action::Action>,
 	) {
 		self.enabled_categories.insert(id, category.clone());
 		self.add_action_states(id, actions);
@@ -83,13 +84,12 @@ impl User {
 	fn add_action_states(
 		&mut self,
 		category_id: Option<CategoryId>,
-		actions: &HashMap<ActionId, Action>,
+		actions: &HashMap<action::Id, action::Action>,
 	) {
 		if let Some(action_binding_map) = self
 			.enabled_categories
 			.get(&category_id)
 			.unwrap()
-			.binding_maps
 			.get(&self.active_layout)
 		{
 			for (action_id, behavior_list) in action_binding_map.0.iter() {
@@ -107,7 +107,7 @@ impl User {
 							);
 						}
 					}
-					let action_state = ActionState::new(action.clone());
+					let action_state = action::State::new(action.clone());
 					if action_state.requires_updates() {
 						self.ticking_states.insert(action_id);
 					}
@@ -135,7 +135,12 @@ impl User {
 		}
 	}
 
-	pub fn process_event(&mut self, controller: ControllerId, event: &Event, time: &SystemTime) {
+	pub(crate) fn process_event(
+		&mut self,
+		controller: ControllerId,
+		event: &Event,
+		time: &SystemTime,
+	) {
 		let mut matched_action_ids = Vec::new();
 		for (key, action_id) in self.bound_actions.iter() {
 			if key.controller_kind == controller.into() && key.binding == event.binding {

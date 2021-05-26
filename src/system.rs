@@ -1,8 +1,9 @@
 use crate::{
+	action,
 	binding::Binding,
 	source::{Axis, Button},
-	Action, ActionId, Category, CategoryId, ControllerId, Event, EventButtonState, EventSource,
-	EventState, GamepadKind, Layout, User,
+	Category, CategoryId, ControllerId, Event, EventButtonState, EventSource, EventState,
+	GamepadKind, Layout, User,
 };
 use std::{
 	collections::HashMap,
@@ -32,7 +33,7 @@ type UserId = usize;
 pub struct System {
 	gamepad_input: gilrs::Gilrs,
 	users: Vec<User>,
-	actions: HashMap<ActionId, Action>,
+	actions: HashMap<action::Id, action::Action>,
 	layouts: Vec<Layout>,
 	categories: HashMap<Option<CategoryId>, Category>,
 	unassigned_controllers: Vec<ControllerId>,
@@ -88,7 +89,7 @@ impl System {
 		self
 	}
 
-	pub fn add_action(&mut self, name: ActionId, action: Action) -> &mut Self {
+	pub fn add_action(&mut self, name: action::Id, action: action::Action) -> &mut Self {
 		self.actions.insert(name, action);
 		self
 	}
