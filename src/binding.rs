@@ -1,4 +1,4 @@
-use crate::{Axis, Button, Key, MouseButton};
+use crate::{Axis, Button, Event, EventState, Key, MouseButton};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Binding {
@@ -21,5 +21,31 @@ impl Binding {
 
 	pub fn is_button(&self) -> bool {
 		!self.is_axis()
+	}
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Behavior {
+	pub binding: Binding,
+	pub modifier: f32,
+}
+
+impl Behavior {
+	pub fn new(binding: Binding) -> Self {
+		Self {
+			binding,
+			modifier: 1.0,
+		}
+	}
+
+	pub(crate) fn apply(&self, event: Event) -> Event {
+		let mut event = event;
+		match &mut event.state {
+			EventState::ButtonState(_btn_state) => {}
+			EventState::MouseMove(_x, _y) => {}
+			EventState::MouseScroll(_x, _y) => {}
+			EventState::ValueChanged(value) => *value *= self.modifier,
+		}
+		event
 	}
 }

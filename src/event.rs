@@ -1,4 +1,4 @@
-use crate::Binding;
+use crate::binding::Binding;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventButtonState {

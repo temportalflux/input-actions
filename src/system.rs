@@ -1,5 +1,5 @@
 use crate::{
-	Action, ActionId, Axis, Binding, Button, Category, CategoryId, ControllerId, Event,
+	binding::Binding, Action, ActionId, Axis, Button, Category, CategoryId, ControllerId, Event,
 	EventButtonState, EventSource, EventState, GamepadKind, Layout, User,
 };
 use std::{

@@ -1,5 +1,5 @@
 use crate::{
-	Action, ActionId, ActionState, Binding, Category, CategoryId, ControllerId, ControllerKind,
+	binding, Action, ActionId, ActionState, Category, CategoryId, ControllerId, ControllerKind,
 	Event, Layout,
 };
 use std::{
@@ -12,7 +12,7 @@ pub(crate) struct User {
 	controllers: HashSet<ControllerId>,
 	active_layout: Option<Layout>,
 	enabled_categories: HashMap<Option<CategoryId>, Category>,
-	bound_actions: HashMap<BindingStateKey, ActionId>,
+	bound_actions: HashMap<BindingStateKey, (ActionId, binding::Behavior)>,
 	action_states: HashMap<ActionId, ActionState>,
 	ticking_states: HashSet<ActionId>,
 }
@@ -22,7 +22,7 @@ struct BindingStateKey {
 	category: Option<CategoryId>,
 	layout: Option<Layout>,
 	controller_kind: ControllerKind,
-	binding: Binding,
+	binding: binding::Binding,
 }
 
 impl Default for User {
@@ -92,18 +92,18 @@ impl User {
 			.binding_maps
 			.get(&self.active_layout)
 		{
-			for (action_id, binding_list) in action_binding_map.0.iter() {
+			for (action_id, behavior_list) in action_binding_map.0.iter() {
 				if let Some(action) = actions.get(action_id) {
-					for (controller_kind, bindings) in binding_list {
-						for binding in bindings {
+					for (controller_kind, behaviors) in behavior_list {
+						for behavior in behaviors {
 							self.bound_actions.insert(
 								BindingStateKey {
 									category: category_id,
 									layout: self.active_layout,
 									controller_kind: *controller_kind,
-									binding: *binding,
+									binding: behavior.binding,
 								},
-								action_id,
+								(action_id, *behavior),
 							);
 						}
 					}
@@ -129,7 +129,7 @@ impl User {
 			}
 		}
 		self.bound_actions = retained_actions;
-		for (_, action_id) in removed_actions {
+		for (_, (action_id, _)) in removed_actions {
 			self.action_states.remove(action_id);
 			self.ticking_states.remove(action_id);
 		}
@@ -142,9 +142,9 @@ impl User {
 				matched_action_ids.push(action_id);
 			}
 		}
-		for action_id in matched_action_ids {
+		for (action_id, behavior) in matched_action_ids {
 			if let Some(state) = self.action_states.get_mut(action_id) {
-				state.process_event(event.clone(), &time);
+				state.process_event(behavior.apply(event.clone()), &time);
 			}
 		}
 	}
