@@ -6,6 +6,7 @@ use std::{
 	collections::HashMap,
 	mem::MaybeUninit,
 	sync::{Once, RwLock, RwLockReadGuard, RwLockWriteGuard},
+	time::SystemTime,
 };
 
 struct Singleton(MaybeUninit<RwLock<System>>, Once);
@@ -220,7 +221,7 @@ impl System {
 		self.unassign_controller(ControllerId::Gamepad(self.get_gamepad_kind(&id), id));
 	}
 
-	pub fn read_gamepad_events(&mut self) {
+	fn read_gamepad_events(&mut self) {
 		use gilrs::EventType;
 		use std::convert::TryFrom;
 		while let Some(gilrs::Event { id, event, time }) = self.gamepad_input.next_event() {
@@ -298,16 +299,11 @@ impl System {
 				EventSource::Keyboard => ControllerId::Keyboard,
 			},
 			event,
-			std::time::SystemTime::now(),
+			SystemTime::now(),
 		);
 	}
 
-	fn process_event(
-		&mut self,
-		controller: ControllerId,
-		event: Event,
-		time: std::time::SystemTime,
-	) {
+	fn process_event(&mut self, controller: ControllerId, event: Event, time: SystemTime) {
 		for event in self.parse_event(event) {
 			self.update_user_actions(controller, event, time);
 		}
@@ -341,16 +337,19 @@ impl System {
 		events
 	}
 
-	fn update_user_actions(
-		&mut self,
-		controller: ControllerId,
-		event: Event,
-		time: std::time::SystemTime,
-	) {
+	fn update_user_actions(&mut self, controller: ControllerId, event: Event, time: SystemTime) {
 		if let Some(user_id) = self.controller_to_user.get(&controller) {
 			if let Some(user) = self.users.get_mut(*user_id) {
 				user.process_event(controller, &event, &time);
 			}
+		}
+	}
+
+	pub fn update(&mut self) {
+		self.read_gamepad_events();
+		let time = SystemTime::now();
+		for user in self.users.iter_mut() {
+			user.update(&time);
 		}
 	}
 }

@@ -2,7 +2,10 @@ use crate::{
 	Action, ActionId, ActionState, Binding, Category, CategoryId, ControllerId, ControllerKind,
 	Event, Layout,
 };
-use std::collections::{HashMap, HashSet};
+use std::{
+	collections::{HashMap, HashSet},
+	time::SystemTime,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct User {
@@ -11,6 +14,7 @@ pub(crate) struct User {
 	enabled_categories: HashMap<Option<CategoryId>, Category>,
 	bound_actions: HashMap<BindingStateKey, ActionId>,
 	action_states: HashMap<ActionId, ActionState>,
+	ticking_states: HashSet<ActionId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -29,6 +33,7 @@ impl Default for User {
 			enabled_categories: HashMap::new(),
 			bound_actions: HashMap::new(),
 			action_states: HashMap::new(),
+			ticking_states: HashSet::new(),
 		}
 	}
 }
@@ -38,6 +43,7 @@ impl User {
 		self.active_layout = layout;
 		self.bound_actions.clear();
 		self.action_states.clear();
+		self.ticking_states.clear();
 		let category_ids = self.enabled_categories.keys().cloned().collect::<Vec<_>>();
 		for category_id in category_ids {
 			self.add_action_states(category_id, actions);
@@ -101,8 +107,11 @@ impl User {
 							);
 						}
 					}
-					self.action_states
-						.insert(action_id, ActionState::new(action.clone()));
+					let action_state = ActionState::new(action.clone());
+					if action_state.requires_updates() {
+						self.ticking_states.insert(action_id);
+					}
+					self.action_states.insert(action_id, action_state);
 				}
 			}
 		}
@@ -120,24 +129,13 @@ impl User {
 			}
 		}
 		self.bound_actions = retained_actions;
-		self.action_states = self
-			.action_states
-			.drain()
-			.filter(|(id, _)| {
-				removed_actions
-					.values()
-					.find(|action_id| **action_id == *id)
-					.is_none()
-			})
-			.collect();
+		for (_, action_id) in removed_actions {
+			self.action_states.remove(action_id);
+			self.ticking_states.remove(action_id);
+		}
 	}
 
-	pub fn process_event(
-		&mut self,
-		controller: ControllerId,
-		event: &Event,
-		time: &std::time::SystemTime,
-	) {
+	pub fn process_event(&mut self, controller: ControllerId, event: &Event, time: &SystemTime) {
 		let mut matched_action_ids = Vec::new();
 		for (key, action_id) in self.bound_actions.iter() {
 			if key.controller_kind == controller.into() && key.binding == event.binding {
@@ -146,8 +144,14 @@ impl User {
 		}
 		for action_id in matched_action_ids {
 			if let Some(state) = self.action_states.get_mut(action_id) {
-				state.process_event(event.state.clone(), &time);
+				state.process_event(event.clone(), &time);
 			}
+		}
+	}
+
+	pub fn update(&mut self, time: &SystemTime) {
+		for action_id in self.ticking_states.iter() {
+			self.action_states.get_mut(action_id).unwrap().update(time);
 		}
 	}
 }

@@ -1,14 +1,14 @@
-use crate::{Action, ActionBehavior, ActionKind, EventButtonState, EventState};
+use crate::{Action, ActionBehavior, ActionKind, Event, EventButtonState, EventState};
 use std::time::SystemTime;
 
 #[derive(Debug, Clone)]
 pub(crate) struct ActionState {
-	kind: ActionKind,
+	pub(crate) kind: ActionKind,
 	behavior: ActionBehavior,
 	/// Used to indicate if a button is pressed or released
-	active: bool,
-	value: f32,
-	modified_at: SystemTime,
+	pub(crate) active: bool,
+	pub(crate) value: f32,
+	pub(crate) modified_at: SystemTime,
 }
 
 impl ActionState {
@@ -22,16 +22,20 @@ impl ActionState {
 		}
 	}
 
-	pub fn process_event(&mut self, state: EventState, time: &SystemTime) {
-		if match self.behavior.modify_event_for(state, &self.kind) {
-			EventState::ButtonState(btn_state) if self.kind == ActionKind::Button => {
+	pub fn process_event(&mut self, event: Event, time: &SystemTime) {
+		if match event.state {
+			EventState::ButtonState(btn_state) => {
 				self.active = btn_state == EventButtonState::Pressed;
 				true
 			}
-			EventState::ButtonState(btn_state) => false,
-			EventState::MouseMove(x, y) => false,
-			EventState::MouseScroll(x, y) => false,
+			EventState::MouseMove(_x, _y) => false,
+			EventState::MouseScroll(_x, _y) => false,
 			EventState::ValueChanged(value) => {
+				if self.kind == ActionKind::Axis {
+					if !event.binding.is_axis() {
+						// TODO: Handle digitial axis
+					}
+				}
 				self.value = value;
 				true
 			}
@@ -39,4 +43,10 @@ impl ActionState {
 			self.modified_at = *time;
 		}
 	}
+
+	pub(crate) fn requires_updates(&self) -> bool {
+		self.behavior.digital_axis.is_some()
+	}
+
+	pub fn update(&mut self, _time: &SystemTime) {}
 }
