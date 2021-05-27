@@ -5,4 +5,4 @@ pub use behavior::*;
 mod binding_map;
 pub use binding_map::*;
 mod state;
-pub(crate) use state::*;
+pub use state::*;

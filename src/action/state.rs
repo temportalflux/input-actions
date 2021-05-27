@@ -12,7 +12,7 @@ pub struct State {
 }
 
 impl State {
-	pub fn new(action: action::Action) -> Self {
+	pub(crate) fn new(action: action::Action) -> Self {
 		Self {
 			kind: action.kind,
 			behavior: action.behavior,
@@ -22,7 +22,7 @@ impl State {
 		}
 	}
 
-	pub fn process_event(&mut self, event: event::Event, time: &Instant) {
+	pub(crate) fn process_event(&mut self, event: event::Event, time: &Instant) {
 		if match event.state {
 			event::State::ButtonState(btn_state) => {
 				self.active = btn_state == event::ButtonState::Pressed;
@@ -44,11 +44,11 @@ impl State {
 		}
 	}
 
-	pub fn requires_updates(&self) -> bool {
+	pub(crate) fn requires_updates(&self) -> bool {
 		self.behavior.digital_axis.is_some()
 	}
 
-	pub fn update(&mut self, _time: &Instant) {}
+	pub(crate) fn update(&mut self, _time: &Instant) {}
 
 	/// Returns true if the amount of time elapsed since the action was last modified
 	/// is less than or equal to the provided duration.

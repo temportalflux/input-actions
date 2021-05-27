@@ -28,7 +28,7 @@ impl Singleton {
 	}
 }
 
-type UserId = usize;
+pub type UserId = usize;
 
 /// Contains the setup for a particular application.
 pub struct System {
