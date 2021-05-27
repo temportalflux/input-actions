@@ -72,6 +72,8 @@ impl System {
 }
 
 impl System {
+	/// Grabs all gamepads from gilrs and attempts to connect them (or cache them if there are no users).
+	/// User internally when constructing the singleton.
 	fn initialize_gamepads(mut self) -> Self {
 		let existing_gamepad_ids = self
 			.gamepad_input
@@ -84,27 +86,34 @@ impl System {
 		self
 	}
 
+	/// Adds an amount of users to the system,
+	/// connecting any unassigned devices to the new users as available.
 	pub fn add_users(&mut self, count: usize) -> &mut Self {
 		self.users.extend((0..count).map(|_| User::default()));
 		self.assign_unused_devices();
 		self
 	}
 
+	/// Adds an action to the list of actions the system supports.
 	pub fn add_action(&mut self, name: action::Id, action: action::Action) -> &mut Self {
 		self.actions.insert(name, action);
 		self
 	}
 
+	/// Adds a layout to the list of layouts the system supports.
 	pub fn add_layout(&mut self, layout: Layout) -> &mut Self {
 		self.layouts.push(layout);
 		self
 	}
 
+	/// Adds a mapping of category & layout to the list of bindings for set of actions.
 	pub fn add_map_category(&mut self, id: CategoryId, category: LayoutBindings) -> &mut Self {
 		self.categories.insert(id, category);
 		self
 	}
 
+	/// Sets the layout of a user.
+	/// If not called, all user's start with a `None` layout (default layout).
 	pub fn set_user_layout(&mut self, user_id: UserId, layout: Layout) -> &mut Self {
 		if let Some(user) = self.users.get_mut(user_id) {
 			user.set_layout(layout, &self.actions);
@@ -112,6 +121,9 @@ impl System {
 		self
 	}
 
+	/// Enables and disables a provided category for a given user.
+	/// When enabled, a user will receive input events for the actions in that category,
+	/// until the category is disabled (or until [`System::update`] stops being called).
 	pub fn set_category_enabled(
 		&mut self,
 		user_id: UserId,
@@ -130,6 +142,7 @@ impl System {
 		self
 	}
 
+	/// Enables a category for all existing users. See [`System::set_category_enabled`] for further details.
 	pub fn enable_category_for_all(&mut self, category_id: CategoryId) -> &mut Self {
 		if let Some(category) = self.categories.get(&category_id) {
 			for user in self.users.iter_mut() {
@@ -139,10 +152,14 @@ impl System {
 		self
 	}
 
+	/// Iterates over all unassigned devices and attempts to assign them to users.
+	/// Used predominately to assign devices to users on initialization
+	/// (where users are added after the system queries all the gamepads).
 	fn assign_unused_devices(&mut self) {
 		let unused_devices = self.unassigned_devices.drain(..).collect::<Vec<_>>();
 		for device in unused_devices {
 			match device {
+				// Mouse and Keyboard devices should always go to the first user
 				device::Id::Mouse | device::Id::Keyboard => {
 					if let Some(first_user_id) = self.users.iter().position(|_| true) {
 						self.assign_device(device, first_user_id);
@@ -150,6 +167,7 @@ impl System {
 						self.unassigned_devices.push(device);
 					}
 				}
+				// Assign gamepads to users without gamepads
 				device::Id::Gamepad(_, _) => {
 					if let Some(user_id) = self
 						.users
@@ -165,6 +183,7 @@ impl System {
 		}
 	}
 
+	/// Assigns a device to a specific user - does not validate if this operation is actually desired.
 	fn assign_device(&mut self, device: device::Id, user_id: UserId) {
 		self.users[user_id].add_device(device);
 		self.device_to_user.insert(device, user_id);
@@ -173,6 +192,10 @@ impl System {
 		}
 	}
 
+	/// Unassigns a device from a user it may belong to.
+	/// The device is put in `unassigned_devices` if it had no user,
+	/// or in `disconnected_device_users` if it had a user so that we can track the device
+	/// should it become available again.
 	fn unassign_device(&mut self, device: device::Id) {
 		if let Some(user_id) = self.device_to_user.remove(&device) {
 			self.users[user_id].remove_device(device);
@@ -180,6 +203,8 @@ impl System {
 			if cfg!(feature = "log") {
 				log::info!(target: "ReBound", "unassigning {} from user {}", device, user_id);
 			}
+		} else {
+			self.unassigned_devices.push(device);
 		}
 	}
 
@@ -220,10 +245,13 @@ impl System {
 		self.unassigned_devices.push(device);
 	}
 
+	/// Unassigns a gilrs gamepad from an user it may be assigned to.
 	fn disconnect_gamepad(&mut self, id: gilrs::GamepadId) {
 		self.unassign_device(device::Id::Gamepad(self.get_gamepad_kind(&id), id));
 	}
 
+	/// Queries the gilrs system to get all gamepad input events.
+	/// Sends relevant events to `process_event` (or connects/disconnects the gamepad if required).
 	fn read_gamepad_events(&mut self) {
 		use gilrs::EventType;
 		use std::convert::TryFrom;
@@ -314,6 +342,9 @@ impl System {
 		}
 	}
 
+	/// Sends an input event to the system.
+	/// Use with caution! Gamepad events are already handled/built-in,
+	/// but Mouse and Keyboard events should come from the relevant feature/extension (like winit).
 	pub fn send_event(&mut self, source: event::Source, event: event::Event) {
 		self.process_event(
 			match source {
@@ -325,16 +356,17 @@ impl System {
 		);
 	}
 
+	/// Parses and processes a provided input event from a device.
 	fn process_event(&mut self, device: device::Id, event: event::Event, time: Instant) {
 		for event in self.parse_event(event) {
 			self.update_user_actions(device, event, time);
 		}
 	}
 
+	// Based on the platform and the event, we may need to split the event into multiple events.
+	// For example: the bottom and right face buttons on a gamepad may need to also trigger
+	// `Button::VirtualConfirm` or `Button::VirtualDeny` in addition to the original button.
 	fn parse_event(&mut self, event: event::Event) -> Vec<event::Event> {
-		// Based on the platform and the event, we may need to split the event into multiple events.
-		// For example: the bottom and right face buttons on a gamepad may need to also trigger
-		// `Button::VirtualConfirm` or `Button::VirtualDeny` in addition to the original button.
 		let mut events = vec![event.clone()];
 		if let event::Event {
 			source: binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::FaceBottom)),
@@ -365,6 +397,7 @@ impl System {
 		events
 	}
 
+	/// Processes an event for a specific user based on the device.
 	fn update_user_actions(&mut self, device: device::Id, event: event::Event, time: Instant) {
 		if let Some(user_id) = self.device_to_user.get(&device) {
 			if let Some(user) = self.users.get_mut(*user_id) {
@@ -373,6 +406,7 @@ impl System {
 		}
 	}
 
+	/// Collects gamepad input and updates relevant actions.
 	pub fn update(&mut self) {
 		self.read_gamepad_events();
 		let time = Instant::now();
@@ -381,10 +415,14 @@ impl System {
 		}
 	}
 
+	/// Returns a list of active user ids.
 	pub fn get_user_ids(&self) -> Vec<UserId> {
 		(0..self.users.len()).collect()
 	}
 
+	/// Returns the state for an action on a given user.
+	/// If the action is invalid or is not enabled for the user's layout
+	/// or list of enabled categories, `None` will be returned.
 	pub fn get_user_action(
 		&self,
 		user_id: UserId,

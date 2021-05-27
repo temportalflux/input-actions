@@ -23,17 +23,17 @@ pub enum Button {
 
 	/// The button used for confirmation/approval.
 	/// This is a virtual wrapper based on the console.
-	/// - PS4 case 1: [`X`](Button::FaceBottom)
-	/// - PS4 case 2: [`Circle`](Button::FaceRight)
-	/// - Xbox: [`A`](Button::FaceBottom)
-	/// - Switch: [`A`](Button::FaceRight)
+	/// - PS4 case 1: [`X (Bottom)`](Button::FaceBottom)
+	/// - Xbox: [`A (Bottom)`](Button::FaceBottom)
+	/// - PS4 case 2: [`Circle (Right)`](Button::FaceRight)
+	/// - Switch: [`A (Right)`](Button::FaceRight)
 	VirtualConfirm,
 	/// The button used for confirmation/approval.
 	/// This is a virtual wrapper based on the console.
-	/// - PS4 case 1: [`X`](Button::FaceRight)
-	/// - PS4 case 2: [`Circle`](Button::FaceBottom)
-	/// - Xbox: [`B`](Button::FaceRight)
-	/// - Switch: [`A`](Button::FaceBottom)
+	/// - PS4 case 1: [`Circle (Right)`](Button::FaceRight)
+	/// - Xbox: [`B (Right)`](Button::FaceRight)
+	/// - PS4 case 2: [`X (Bottom)`](Button::FaceBottom)
+	/// - Switch: [`B (Bottom)`](Button::FaceBottom)
 	VirtualDeny,
 
 	/// Pressing in on the left thumbstick

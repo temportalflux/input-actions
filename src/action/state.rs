@@ -1,6 +1,7 @@
 use crate::{action, event, source};
 use std::time::{Duration, Instant};
 
+/// The state of an active [`action`](action::Action) for a given user.
 #[derive(Debug, Clone)]
 pub struct State {
 	kind: source::Kind,
@@ -56,12 +57,13 @@ impl State {
 		self.modified_at.elapsed() <= duration
 	}
 
-	/// Returns true when a [`button binding`](crate::binding::Kind::Button) is pressed,
+	/// Returns true when a [`button binding`](crate::source::Kind::Button) is pressed,
 	/// and this function is called <= 1ms after it being pressed.
 	pub fn on_button_pressed(&self) -> bool {
 		self.active && self.modified_within(Duration::from_millis(1))
 	}
-	/// Returns true when a [`button binding`](crate::binding::Kind::Button) is not pressed,
+
+	/// Returns true when a [`button binding`](crate::source::Kind::Button) is not pressed,
 	/// and this function is called <= 1ms after it being released.
 	pub fn on_button_released(&self) -> bool {
 		!self.active && self.modified_within(Duration::from_millis(1))
