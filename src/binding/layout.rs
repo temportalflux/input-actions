@@ -22,6 +22,9 @@ impl Default for LayoutBindings {
 }
 
 impl LayoutBindings {
+
+	/// Associates a layout with a map of action to device bindings,
+	/// for this category.
 	pub fn with(mut self, layout: Layout, map: ActionMap) -> Self {
 		self.0.insert(layout, map);
 		self

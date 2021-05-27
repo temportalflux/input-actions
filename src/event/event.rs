@@ -1,7 +1,7 @@
-use crate::{binding::Binding, event};
+use crate::{binding, event};
 
 #[derive(Debug, Clone)]
 pub struct Event {
-	pub binding: Binding,
+	pub source: binding::Source,
 	pub state: event::State,
 }

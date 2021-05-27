@@ -1,9 +1,9 @@
-use crate::{action, event};
+use crate::{action, event, source};
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone)]
 pub struct State {
-	kind: action::Kind,
+	kind: source::Kind,
 	behavior: action::Behavior,
 	/// Used to indicate if a button is pressed or released
 	active: bool,
@@ -31,8 +31,8 @@ impl State {
 			event::State::MouseMove(_x, _y) => false,
 			event::State::MouseScroll(_x, _y) => false,
 			event::State::ValueChanged(value) => {
-				if self.kind == action::Kind::Axis {
-					if !event.binding.is_axis() {
+				if self.kind == source::Kind::Axis {
+					if event.source.kind() == source::Kind::Button {
 						// TODO: Handle digitial axis
 					}
 				}
@@ -56,12 +56,12 @@ impl State {
 		self.modified_at.elapsed() <= duration
 	}
 
-	/// Returns true when a [`button binding`](crate::binding::Binding::is_button) is pressed,
+	/// Returns true when a [`button binding`](crate::binding::Kind::Button) is pressed,
 	/// and this function is called <= 1ms after it being pressed.
 	pub fn on_button_pressed(&self) -> bool {
 		self.active && self.modified_within(Duration::from_millis(1))
 	}
-	/// Returns true when a [`button binding`](crate::binding::Binding::is_button) is not pressed,
+	/// Returns true when a [`button binding`](crate::binding::Kind::Button) is not pressed,
 	/// and this function is called <= 1ms after it being released.
 	pub fn on_button_released(&self) -> bool {
 		!self.active && self.modified_within(Duration::from_millis(1))

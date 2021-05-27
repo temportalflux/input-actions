@@ -1,6 +1,5 @@
 use crate::{
-	binding::Binding,
-	event,
+	binding, event,
 	source::{Key, MouseButton},
 };
 use std::convert::{TryFrom, TryInto};
@@ -18,7 +17,7 @@ pub fn parse_winit_event<'a, T>(
 		} => Ok((
 			event::Source::Mouse,
 			event::Event {
-				binding: Binding::MouseMove,
+				source: binding::Source::Mouse(binding::Mouse::Move),
 				state: event::State::MouseMove(delta.0, delta.1),
 			},
 		)),
@@ -31,7 +30,7 @@ pub fn parse_winit_event<'a, T>(
 		} => Ok((
 			event::Source::Mouse,
 			event::Event {
-				binding: Binding::MouseScroll,
+				source: binding::Source::Mouse(binding::Mouse::Scroll),
 				state: event::State::MouseScroll(*horizontal, *vertical),
 			},
 		)),
@@ -43,7 +42,7 @@ pub fn parse_winit_event<'a, T>(
 				(
 					event::Source::Mouse,
 					event::Event {
-						binding: Binding::MouseButton(button_enum),
+						source: binding::Source::Mouse(binding::Mouse::Button(button_enum)),
 						state: event::State::ButtonState(match state {
 							ElementState::Pressed => event::ButtonState::Pressed,
 							ElementState::Released => event::ButtonState::Released,
@@ -69,7 +68,7 @@ pub fn parse_winit_event<'a, T>(
 				(
 					event::Source::Keyboard,
 					event::Event {
-						binding: Binding::KeyboardKey(keycode),
+						source: binding::Source::Keyboard(keycode),
 						state: event::State::ButtonState(match state {
 							ElementState::Pressed => event::ButtonState::Pressed,
 							ElementState::Released => event::ButtonState::Released,

@@ -1,10 +1,4 @@
-use crate::action;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Kind {
-	Button,
-	Axis,
-}
+use crate::{action, source};
 
 pub type Id = &'static str;
 
@@ -20,12 +14,12 @@ pub type Id = &'static str;
 /// Once configured, [`System::get_user_action`](crate::System::get_user_action) can be called to get the [`action state`](action::State).
 #[derive(Clone)]
 pub struct Action {
-	pub(crate) kind: Kind,
+	pub(crate) kind: source::Kind,
 	pub(crate) behavior: action::Behavior,
 }
 
 impl Action {
-	pub fn new(kind: Kind) -> Self {
+	pub fn new(kind: source::Kind) -> Self {
 		Self {
 			kind,
 			behavior: action::Behavior::default(),

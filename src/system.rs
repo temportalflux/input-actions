@@ -1,6 +1,6 @@
 use crate::{
 	action,
-	binding::{Binding, CategoryId, Layout, LayoutBindings},
+	binding::{self, CategoryId, Layout, LayoutBindings},
 	device::{self, GamepadKind},
 	event,
 	source::{Axis, Button},
@@ -234,7 +234,8 @@ impl System {
 		}) = self.gamepad_input.next_event()
 		{
 			let time = Instant::now();
-			let device = device::Id::Gamepad(self.get_gamepad_kind(&id), id);
+			let gamepad_kind = self.get_gamepad_kind(&id);
+			let device = device::Id::Gamepad(gamepad_kind, id);
 			match event {
 				// Gamepad has been connected. If gamepad's UUID doesn't match one of disconnected gamepads,
 				// newly connected gamepad will get new ID.
@@ -249,7 +250,10 @@ impl System {
 						self.process_event(
 							device,
 							event::Event {
-								binding: Binding::GamepadButton(button),
+								source: binding::Source::Gamepad(
+									gamepad_kind,
+									binding::Gamepad::Button(button),
+								),
 								state: event::State::ButtonState(event::ButtonState::Pressed),
 							},
 							time,
@@ -262,7 +266,10 @@ impl System {
 						self.process_event(
 							device,
 							event::Event {
-								binding: Binding::GamepadButton(button),
+								source: binding::Source::Gamepad(
+									gamepad_kind,
+									binding::Gamepad::Button(button),
+								),
 								state: event::State::ButtonState(event::ButtonState::Released),
 							},
 							time,
@@ -277,7 +284,10 @@ impl System {
 						self.process_event(
 							device,
 							event::Event {
-								binding: Binding::GamepadButton(button),
+								source: binding::Source::Gamepad(
+									gamepad_kind,
+									binding::Gamepad::Button(button),
+								),
 								state: event::State::ValueChanged(value),
 							},
 							time,
@@ -290,7 +300,10 @@ impl System {
 						self.process_event(
 							device,
 							event::Event {
-								binding: Binding::GamepadAxis(axis),
+								source: binding::Source::Gamepad(
+									gamepad_kind,
+									binding::Gamepad::Axis(axis),
+								),
 								state: event::State::ValueChanged(value),
 							},
 							time,
@@ -324,22 +337,28 @@ impl System {
 		// `Button::VirtualConfirm` or `Button::VirtualDeny` in addition to the original button.
 		let mut events = vec![event.clone()];
 		if let event::Event {
-			binding: Binding::GamepadButton(Button::FaceBottom),
+			source: binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::FaceBottom)),
 			..
 		} = event
 		{
 			events.push(event::Event {
-				binding: Binding::GamepadButton(Button::VirtualConfirm),
+				source: binding::Source::Gamepad(
+					kind,
+					binding::Gamepad::Button(Button::VirtualConfirm),
+				),
 				..event
 			});
 		}
 		if let event::Event {
-			binding: Binding::GamepadButton(Button::FaceRight),
+			source: binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::FaceRight)),
 			..
 		} = event
 		{
 			events.push(event::Event {
-				binding: Binding::GamepadButton(Button::VirtualDeny),
+				source: binding::Source::Gamepad(
+					kind,
+					binding::Gamepad::Button(Button::VirtualDeny),
+				),
 				..event
 			});
 		}
@@ -349,7 +368,7 @@ impl System {
 	fn update_user_actions(&mut self, device: device::Id, event: event::Event, time: Instant) {
 		if let Some(user_id) = self.device_to_user.get(&device) {
 			if let Some(user) = self.users.get_mut(*user_id) {
-				user.process_event(device, &event, &time);
+				user.process_event(&event, &time);
 			}
 		}
 	}

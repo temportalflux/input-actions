@@ -9,7 +9,7 @@ pub struct User {
 	devices: HashSet<device::Id>,
 	active_layout: binding::Layout,
 	enabled_categories: HashMap<binding::CategoryId, binding::LayoutBindings>,
-	bound_actions: HashMap<BindingStateKey, (action::Id, binding::Behavior)>,
+	bound_actions: HashMap<BindingStateKey, (action::Id, binding::Binding)>,
 	action_states: HashMap<action::Id, action::State>,
 	ticking_states: HashSet<action::Id>,
 }
@@ -18,8 +18,7 @@ pub struct User {
 struct BindingStateKey {
 	category: binding::CategoryId,
 	layout: binding::Layout,
-	device_kind: device::Kind,
-	binding: binding::Binding,
+	source: binding::Source,
 }
 
 impl Default for User {
@@ -92,20 +91,17 @@ impl User {
 			.unwrap()
 			.get(&self.active_layout)
 		{
-			for (action_id, behavior_list) in action_binding_map.iter() {
+			for (action_id, behaviors) in action_binding_map.iter() {
 				if let Some(action) = actions.get(action_id) {
-					for (device_kind, behaviors) in behavior_list {
-						for behavior in behaviors {
-							self.bound_actions.insert(
-								BindingStateKey {
-									category: category_id,
-									layout: self.active_layout,
-									device_kind: *device_kind,
-									binding: behavior.binding,
-								},
-								(action_id, *behavior),
-							);
-						}
+					for behavior in behaviors {
+						self.bound_actions.insert(
+							BindingStateKey {
+								category: category_id,
+								layout: self.active_layout,
+								source: behavior.source,
+							},
+							(action_id, *behavior),
+						);
 					}
 					let action_state = action::State::new(action.clone());
 					if action_state.requires_updates() {
@@ -135,15 +131,10 @@ impl User {
 		}
 	}
 
-	pub(crate) fn process_event(
-		&mut self,
-		device: device::Id,
-		event: &event::Event,
-		time: &Instant,
-	) {
+	pub(crate) fn process_event(&mut self, event: &event::Event, time: &Instant) {
 		let mut matched_action_ids = Vec::new();
 		for (key, action_id) in self.bound_actions.iter() {
-			if key.device_kind == device.into() && key.binding == event.binding {
+			if key.source == event.source {
 				matched_action_ids.push(action_id);
 			}
 		}
