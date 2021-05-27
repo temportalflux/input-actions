@@ -1,10 +1,13 @@
 [package]
-name = "rebound"
+name = "input-actions"
+description = "An input system for binding PC & Gamepad inputs to application actions"
+license-file = "LICENSE"
 version = "0.1.0"
 authors = ["Dustin Yost <dustin.yost.t@gmail.com>"]
+repository = "https://github.com/temportalflux/input-actions/"
+keywords = ["input", "game-dev"]
+readme = "README.md"
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 default = ["log", "winit"]
