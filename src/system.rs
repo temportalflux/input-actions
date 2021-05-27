@@ -6,27 +6,7 @@ use crate::{
 	source::{Axis, Button},
 	User,
 };
-use std::{
-	collections::HashMap,
-	mem::MaybeUninit,
-	sync::{Once, RwLock, RwLockReadGuard, RwLockWriteGuard},
-	time::Instant,
-};
-
-struct Singleton(MaybeUninit<RwLock<System>>, Once);
-
-impl Singleton {
-	const fn uninit() -> Singleton {
-		Singleton(MaybeUninit::uninit(), Once::new())
-	}
-
-	fn get(&mut self) -> &'static RwLock<System> {
-		let rwlock = &mut self.0;
-		let once = &mut self.1;
-		once.call_once(|| unsafe { rwlock.as_mut_ptr().write(RwLock::new(System::new())) });
-		unsafe { &*self.0.as_ptr() }
-	}
-}
+use std::{collections::HashMap, time::Instant};
 
 pub type UserId = usize;
 
@@ -43,7 +23,7 @@ pub struct System {
 }
 
 impl System {
-	fn new() -> Self {
+	pub fn new() -> Self {
 		Self {
 			gamepad_input: gilrs::Gilrs::new().unwrap(),
 			users: Vec::new(),
@@ -55,19 +35,6 @@ impl System {
 			disconnected_device_users: HashMap::new(),
 		}
 		.initialize_gamepads()
-	}
-
-	pub fn get() -> &'static RwLock<Self> {
-		static mut INSTANCE: Singleton = Singleton::uninit();
-		unsafe { INSTANCE.get() }
-	}
-
-	pub fn read() -> RwLockReadGuard<'static, Self> {
-		Self::get().read().unwrap()
-	}
-
-	pub fn write() -> RwLockWriteGuard<'static, Self> {
-		Self::get().write().unwrap()
 	}
 }
 
