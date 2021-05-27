@@ -14,8 +14,8 @@ pub type Id = &'static str;
 /// Once configured, [`System::get_user_action`](crate::System::get_user_action) can be called to get the [`action state`](action::State).
 #[derive(Clone)]
 pub struct Action {
-	pub(crate) kind: source::Kind,
-	pub(crate) behavior: action::Behavior,
+	kind: source::Kind,
+	behavior: action::Behavior,
 }
 
 impl Action {
@@ -29,5 +29,13 @@ impl Action {
 	pub fn with_behavior(mut self, behavior: action::Behavior) -> Self {
 		self.behavior = behavior;
 		self
+	}
+
+	pub(crate) fn kind(&self) -> source::Kind {
+		self.kind
+	}
+
+	pub(crate) fn behavior(&self) -> &action::Behavior {
+		&self.behavior
 	}
 }

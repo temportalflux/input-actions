@@ -2,7 +2,13 @@ pub static ACTION_BEHAVIOR_DEFAULT_BUTTON: Behavior = Behavior { digital_axis: N
 
 #[derive(Debug, Clone)]
 pub struct Behavior {
-	pub digital_axis: Option<DigitalAxis>,
+	digital_axis: Option<DigitalAxis>,
+}
+
+impl Behavior {
+	pub(crate) fn digital_axis(&self) -> &Option<DigitalAxis> {
+		&self.digital_axis
+	}
 }
 
 /// For [`Button`](crate::source::Kind::Button) events bound to [`Axis`](crate::source::Kind::Axis) actions.

@@ -3,8 +3,14 @@ use crate::binding;
 /// An event created by a third-party to send input to [`System`](crate::System::send_event).
 #[derive(Debug, Clone)]
 pub struct Event {
-	pub source: binding::Source,
-	pub state: State,
+	pub(crate) source: binding::Source,
+	pub(crate) state: State,
+}
+
+impl Event {
+	pub fn new(source: binding::Source, state: State) -> Self {
+		Self { source, state }
+	}
 }
 
 /// The state of a [`gamepad`](crate::source::Button) or [`mouse`](crate::source::MouseButton) button.

@@ -36,9 +36,7 @@ impl System {
 		}
 		.initialize_gamepads()
 	}
-}
 
-impl System {
 	/// Grabs all gamepads from gilrs and attempts to connect them (or cache them if there are no users).
 	/// User internally when constructing the singleton.
 	fn initialize_gamepads(mut self) -> Self {
@@ -244,13 +242,13 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							device,
-							event::Event {
-								source: binding::Source::Gamepad(
+							event::Event::new(
+								binding::Source::Gamepad(
 									gamepad_kind,
 									binding::Gamepad::Button(button),
 								),
-								state: event::State::ButtonState(event::ButtonState::Pressed),
-							},
+								event::State::ButtonState(event::ButtonState::Pressed),
+							),
 							time,
 						);
 					}
@@ -260,13 +258,13 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							device,
-							event::Event {
-								source: binding::Source::Gamepad(
+							event::Event::new(
+								binding::Source::Gamepad(
 									gamepad_kind,
 									binding::Gamepad::Button(button),
 								),
-								state: event::State::ButtonState(event::ButtonState::Released),
-							},
+								event::State::ButtonState(event::ButtonState::Released),
+							),
 							time,
 						);
 					}
@@ -278,13 +276,13 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							device,
-							event::Event {
-								source: binding::Source::Gamepad(
+							event::Event::new(
+								binding::Source::Gamepad(
 									gamepad_kind,
 									binding::Gamepad::Button(button),
 								),
-								state: event::State::ValueChanged(value),
-							},
+								event::State::ValueChanged(value),
+							),
 							time,
 						);
 					}
@@ -294,13 +292,13 @@ impl System {
 					if let Some(axis) = Axis::try_from(axis).ok() {
 						self.process_event(
 							device,
-							event::Event {
-								source: binding::Source::Gamepad(
+							event::Event::new(
+								binding::Source::Gamepad(
 									gamepad_kind,
 									binding::Gamepad::Axis(axis),
 								),
-								state: event::State::ValueChanged(value),
-							},
+								event::State::ValueChanged(value),
+							),
 							time,
 						);
 					}

@@ -15,8 +15,8 @@ pub struct State {
 impl State {
 	pub(crate) fn new(action: action::Action) -> Self {
 		Self {
-			kind: action.kind,
-			behavior: action.behavior,
+			kind: action.kind(),
+			behavior: action.behavior().clone(),
 			active: false,
 			value: 0.0,
 			modified_at: Instant::now(),
@@ -46,7 +46,7 @@ impl State {
 	}
 
 	pub(crate) fn requires_updates(&self) -> bool {
-		self.behavior.digital_axis.is_some()
+		self.behavior.digital_axis().is_some()
 	}
 
 	pub(crate) fn update(&mut self, _time: &Instant) {}
