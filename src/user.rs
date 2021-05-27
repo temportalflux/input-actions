@@ -1,7 +1,7 @@
 use crate::{action, binding, device, event, Category, CategoryId, Layout};
 use std::{
 	collections::{HashMap, HashSet},
-	time::SystemTime,
+	time::Instant,
 };
 
 #[derive(Debug, Clone)]
@@ -139,7 +139,7 @@ impl User {
 		&mut self,
 		device: device::Id,
 		event: &event::Event,
-		time: &SystemTime,
+		time: &Instant,
 	) {
 		let mut matched_action_ids = Vec::new();
 		for (key, action_id) in self.bound_actions.iter() {
@@ -154,9 +154,13 @@ impl User {
 		}
 	}
 
-	pub fn update(&mut self, time: &SystemTime) {
+	pub fn update(&mut self, time: &Instant) {
 		for action_id in self.ticking_states.iter() {
 			self.action_states.get_mut(action_id).unwrap().update(time);
 		}
+	}
+
+	pub fn get_action(&self, id: action::Id) -> Option<&action::State> {
+		self.action_states.get(id)
 	}
 }

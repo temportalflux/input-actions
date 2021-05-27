@@ -1,5 +1,5 @@
 use crate::{action, event};
-use std::time::SystemTime;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone)]
 pub struct State {
@@ -8,7 +8,7 @@ pub struct State {
 	/// Used to indicate if a button is pressed or released
 	active: bool,
 	value: f32,
-	modified_at: SystemTime,
+	modified_at: Instant,
 }
 
 impl State {
@@ -18,11 +18,11 @@ impl State {
 			behavior: action.behavior,
 			active: false,
 			value: 0.0,
-			modified_at: SystemTime::UNIX_EPOCH,
+			modified_at: Instant::now(),
 		}
 	}
 
-	pub fn process_event(&mut self, event: event::Event, time: &SystemTime) {
+	pub fn process_event(&mut self, event: event::Event, time: &Instant) {
 		if match event.state {
 			event::State::ButtonState(btn_state) => {
 				self.active = btn_state == event::ButtonState::Pressed;
@@ -48,5 +48,22 @@ impl State {
 		self.behavior.digital_axis.is_some()
 	}
 
-	pub fn update(&mut self, _time: &SystemTime) {}
+	pub fn update(&mut self, _time: &Instant) {}
+
+	/// Returns true if the amount of time elapsed since the action was last modified
+	/// is less than or equal to the provided duration.
+	fn modified_within(&self, duration: Duration) -> bool {
+		self.modified_at.elapsed() <= duration
+	}
+
+	/// Returns true when a [`button binding`](crate::binding::Binding::is_button) is pressed,
+	/// and this function is called <= 1ms after it being pressed.
+	pub fn on_button_pressed(&self) -> bool {
+		self.active && self.modified_within(Duration::from_millis(1))
+	}
+	/// Returns true when a [`button binding`](crate::binding::Binding::is_button) is not pressed,
+	/// and this function is called <= 1ms after it being released.
+	pub fn on_button_released(&self) -> bool {
+		!self.active && self.modified_within(Duration::from_millis(1))
+	}
 }

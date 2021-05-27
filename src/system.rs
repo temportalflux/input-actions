@@ -10,7 +10,7 @@ use std::{
 	collections::HashMap,
 	mem::MaybeUninit,
 	sync::{Once, RwLock, RwLockReadGuard, RwLockWriteGuard},
-	time::SystemTime,
+	time::Instant,
 };
 
 struct Singleton(MaybeUninit<RwLock<System>>, Once);
@@ -227,7 +227,13 @@ impl System {
 	fn read_gamepad_events(&mut self) {
 		use gilrs::EventType;
 		use std::convert::TryFrom;
-		while let Some(gilrs::Event { id, event, time }) = self.gamepad_input.next_event() {
+		while let Some(gilrs::Event {
+			id,
+			event, /*system time*/
+			..
+		}) = self.gamepad_input.next_event()
+		{
+			let time = Instant::now();
 			let device = device::Id::Gamepad(self.get_gamepad_kind(&id), id);
 			match event {
 				// Gamepad has been connected. If gamepad's UUID doesn't match one of disconnected gamepads,
@@ -302,11 +308,11 @@ impl System {
 				event::Source::Keyboard => device::Id::Keyboard,
 			},
 			event,
-			SystemTime::now(),
+			Instant::now(),
 		);
 	}
 
-	fn process_event(&mut self, device: device::Id, event: event::Event, time: SystemTime) {
+	fn process_event(&mut self, device: device::Id, event: event::Event, time: Instant) {
 		for event in self.parse_event(event) {
 			self.update_user_actions(device, event, time);
 		}
@@ -340,7 +346,7 @@ impl System {
 		events
 	}
 
-	fn update_user_actions(&mut self, device: device::Id, event: event::Event, time: SystemTime) {
+	fn update_user_actions(&mut self, device: device::Id, event: event::Event, time: Instant) {
 		if let Some(user_id) = self.device_to_user.get(&device) {
 			if let Some(user) = self.users.get_mut(*user_id) {
 				user.process_event(device, &event, &time);
@@ -350,9 +356,24 @@ impl System {
 
 	pub fn update(&mut self) {
 		self.read_gamepad_events();
-		let time = SystemTime::now();
+		let time = Instant::now();
 		for user in self.users.iter_mut() {
 			user.update(&time);
 		}
+	}
+
+	pub fn get_user_ids(&self) -> Vec<UserId> {
+		(0..self.users.len()).collect()
+	}
+
+	pub fn get_user_action(
+		&self,
+		user_id: UserId,
+		action_id: action::Id,
+	) -> Option<&action::State> {
+		self.users
+			.get(user_id)
+			.map(|user| user.get_action(action_id))
+			.flatten()
 	}
 }
