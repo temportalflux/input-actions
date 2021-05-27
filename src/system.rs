@@ -1,10 +1,10 @@
 use crate::{
 	action,
-	binding::Binding,
+	binding::{Binding, CategoryId, Layout, LayoutBindings},
 	device::{self, GamepadKind},
 	event,
 	source::{Axis, Button},
-	Category, CategoryId, Layout, User,
+	User,
 };
 use std::{
 	collections::HashMap,
@@ -36,7 +36,7 @@ pub struct System {
 	users: Vec<User>,
 	actions: HashMap<action::Id, action::Action>,
 	layouts: Vec<Layout>,
-	categories: HashMap<Option<CategoryId>, Category>,
+	categories: HashMap<CategoryId, LayoutBindings>,
 	unassigned_devices: Vec<device::Id>,
 	device_to_user: HashMap<device::Id, UserId>,
 	disconnected_device_users: HashMap<device::Id, UserId>,
@@ -100,12 +100,12 @@ impl System {
 		self
 	}
 
-	pub fn add_map_category(&mut self, id: Option<CategoryId>, category: Category) -> &mut Self {
+	pub fn add_map_category(&mut self, id: CategoryId, category: LayoutBindings) -> &mut Self {
 		self.categories.insert(id, category);
 		self
 	}
 
-	pub fn set_user_layout(&mut self, user_id: UserId, layout: Option<Layout>) -> &mut Self {
+	pub fn set_user_layout(&mut self, user_id: UserId, layout: Layout) -> &mut Self {
 		if let Some(user) = self.users.get_mut(user_id) {
 			user.set_layout(layout, &self.actions);
 		}
@@ -115,7 +115,7 @@ impl System {
 	pub fn set_category_enabled(
 		&mut self,
 		user_id: UserId,
-		category_id: Option<CategoryId>,
+		category_id: CategoryId,
 		enabled: bool,
 	) -> &mut Self {
 		if let Some(user) = self.users.get_mut(user_id) {
@@ -130,7 +130,7 @@ impl System {
 		self
 	}
 
-	pub fn enable_category_for_all(&mut self, category_id: Option<CategoryId>) -> &mut Self {
+	pub fn enable_category_for_all(&mut self, category_id: CategoryId) -> &mut Self {
 		if let Some(category) = self.categories.get(&category_id) {
 			for user in self.users.iter_mut() {
 				user.enable_category(category_id, category, &self.actions);

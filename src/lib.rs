@@ -1,5 +1,5 @@
 //! ReBound is a Rust crate heavily inspired by Unity library [Rewired](https://assetstore.unity.com/packages/tools/utilities/rewired-21676) ([Website](https://guavaman.com/projects/rewired/)).
-//! 
+//!
 
 #[cfg(feature = "log")]
 extern crate log;
@@ -13,9 +13,6 @@ pub mod action;
 
 /// Data for telling ReBound how a device input is mapped to an action.
 pub mod binding;
-
-mod category;
-pub use category::*;
 
 /// Data pertaining to physical devices (like mice, keyboards, and gamepads) which send input to ReBound.
 pub mod device;

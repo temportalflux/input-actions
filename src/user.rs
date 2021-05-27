@@ -1,4 +1,4 @@
-use crate::{action, binding, device, event, Category, CategoryId, Layout};
+use crate::{action, binding, device, event};
 use std::{
 	collections::{HashMap, HashSet},
 	time::Instant,
@@ -7,8 +7,8 @@ use std::{
 #[derive(Debug, Clone)]
 pub struct User {
 	devices: HashSet<device::Id>,
-	active_layout: Option<Layout>,
-	enabled_categories: HashMap<Option<CategoryId>, Category>,
+	active_layout: binding::Layout,
+	enabled_categories: HashMap<binding::CategoryId, binding::LayoutBindings>,
 	bound_actions: HashMap<BindingStateKey, (action::Id, binding::Behavior)>,
 	action_states: HashMap<action::Id, action::State>,
 	ticking_states: HashSet<action::Id>,
@@ -16,8 +16,8 @@ pub struct User {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct BindingStateKey {
-	category: Option<CategoryId>,
-	layout: Option<Layout>,
+	category: binding::CategoryId,
+	layout: binding::Layout,
 	device_kind: device::Kind,
 	binding: binding::Binding,
 }
@@ -38,7 +38,7 @@ impl Default for User {
 impl User {
 	pub fn set_layout(
 		&mut self,
-		layout: Option<Layout>,
+		layout: binding::Layout,
 		actions: &HashMap<action::Id, action::Action>,
 	) {
 		self.active_layout = layout;
@@ -68,22 +68,22 @@ impl User {
 
 	pub fn enable_category(
 		&mut self,
-		id: Option<CategoryId>,
-		category: &Category,
+		id: binding::CategoryId,
+		category: &binding::LayoutBindings,
 		actions: &HashMap<action::Id, action::Action>,
 	) {
 		self.enabled_categories.insert(id, category.clone());
 		self.add_action_states(id, actions);
 	}
 
-	pub fn disable_category(&mut self, id: Option<CategoryId>) {
+	pub fn disable_category(&mut self, id: binding::CategoryId) {
 		self.enabled_categories.remove(&id);
 		self.remove_action_states(&id);
 	}
 
 	fn add_action_states(
 		&mut self,
-		category_id: Option<CategoryId>,
+		category_id: binding::CategoryId,
 		actions: &HashMap<action::Id, action::Action>,
 	) {
 		if let Some(action_binding_map) = self
@@ -92,7 +92,7 @@ impl User {
 			.unwrap()
 			.get(&self.active_layout)
 		{
-			for (action_id, behavior_list) in action_binding_map.0.iter() {
+			for (action_id, behavior_list) in action_binding_map.iter() {
 				if let Some(action) = actions.get(action_id) {
 					for (device_kind, behaviors) in behavior_list {
 						for behavior in behaviors {
@@ -117,7 +117,7 @@ impl User {
 		}
 	}
 
-	fn remove_action_states(&mut self, category_id: &Option<CategoryId>) {
+	fn remove_action_states(&mut self, category_id: &binding::CategoryId) {
 		// TODO: Can use `drain_filter` (https://github.com/rust-lang/rust/issues/59618) when stablized
 		let mut retained_actions = HashMap::new();
 		let mut removed_actions = HashMap::new();
