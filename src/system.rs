@@ -1,6 +1,6 @@
 use crate::{
 	action,
-	binding::{self, CategoryId, Layout, LayoutBindings},
+	binding::{self, ActionSet, ActionSetId, LayoutId},
 	device::{self, GamepadKind},
 	event,
 	source::{Axis, Button},
@@ -15,8 +15,8 @@ pub struct System {
 	gamepad_input: gilrs::Gilrs,
 	users: Vec<User>,
 	actions: HashMap<action::Id, action::Action>,
-	layouts: Vec<Layout>,
-	categories: HashMap<CategoryId, LayoutBindings>,
+	layouts: Vec<LayoutId>,
+	action_sets: HashMap<ActionSetId, ActionSet>,
 	unassigned_devices: Vec<device::Id>,
 	device_to_user: HashMap<device::Id, UserId>,
 	disconnected_device_users: HashMap<device::Id, UserId>,
@@ -29,7 +29,7 @@ impl System {
 			users: Vec::new(),
 			actions: HashMap::new(),
 			layouts: Vec::new(),
-			categories: HashMap::new(),
+			action_sets: HashMap::new(),
 			unassigned_devices: vec![device::Id::Mouse, device::Id::Keyboard],
 			device_to_user: HashMap::new(),
 			disconnected_device_users: HashMap::new(),
@@ -66,52 +66,53 @@ impl System {
 	}
 
 	/// Adds a layout to the list of layouts the system supports.
-	pub fn add_layout(&mut self, layout: Layout) -> &mut Self {
+	pub fn add_layout(&mut self, layout: LayoutId) -> &mut Self {
 		self.layouts.push(layout);
 		self
 	}
 
-	/// Adds a mapping of category & layout to the list of bindings for set of actions.
-	pub fn add_map_category(&mut self, id: CategoryId, category: LayoutBindings) -> &mut Self {
-		self.categories.insert(id, category);
+	/// Associates an [`action set`](ActionSet) with an [`id`](ActionSetId).
+	pub fn add_action_set(&mut self, id: ActionSetId, set: ActionSet) -> &mut Self {
+		self.action_sets.insert(id, set);
 		self
 	}
 
 	/// Sets the layout of a user.
 	/// If not called, all user's start with a `None` layout (default layout).
-	pub fn set_user_layout(&mut self, user_id: UserId, layout: Layout) -> &mut Self {
+	pub fn set_user_layout(&mut self, user_id: UserId, layout: LayoutId) -> &mut Self {
 		if let Some(user) = self.users.get_mut(user_id) {
 			user.set_layout(layout, &self.actions);
 		}
 		self
 	}
 
-	/// Enables and disables a provided category for a given user.
-	/// When enabled, a user will receive input events for the actions in that category,
-	/// until the category is disabled (or until [`System::update`] stops being called).
-	pub fn set_category_enabled(
+	/// Enables and disables a provided [`action set`](ActionSet) for a given user.
+	/// When enabled, a user will receive input events for the actions in the [`action set`](ActionSet),
+	/// until the set is disabled (or until [`System::update`] stops being called).
+	pub fn mark_action_set_enabled(
 		&mut self,
 		user_id: UserId,
-		category_id: CategoryId,
+		set_id: ActionSetId,
 		enabled: bool,
 	) -> &mut Self {
 		if let Some(user) = self.users.get_mut(user_id) {
 			if enabled {
-				if let Some(category) = self.categories.get(&category_id) {
-					user.enable_category(category_id, category, &self.actions);
+				if let Some(action_set) = self.action_sets.get(&set_id) {
+					user.enable_action_set(set_id, action_set, &self.actions);
 				}
 			} else {
-				user.disable_category(category_id);
+				user.disable_action_set(set_id);
 			}
 		}
 		self
 	}
 
-	/// Enables a category for all existing users. See [`System::set_category_enabled`] for further details.
-	pub fn enable_category_for_all(&mut self, category_id: CategoryId) -> &mut Self {
-		if let Some(category) = self.categories.get(&category_id) {
+	/// Enables an [`action set`](ActionSet) for all existing users.
+	/// See [`System::mark_action_set_enabled`] for further details.
+	pub fn enable_action_set_for_all(&mut self, id: ActionSetId) -> &mut Self {
+		if let Some(action_set) = self.action_sets.get(&id) {
 			for user in self.users.iter_mut() {
-				user.enable_category(category_id, category, &self.actions);
+				user.enable_action_set(id, action_set, &self.actions);
 			}
 		}
 		self
@@ -387,7 +388,7 @@ impl System {
 
 	/// Returns the state for an action on a given user.
 	/// If the action is invalid or is not enabled for the user's layout
-	/// or list of enabled categories, `None` will be returned.
+	/// or list of enabled action sets, `None` will be returned.
 	pub fn get_user_action(
 		&self,
 		user_id: UserId,

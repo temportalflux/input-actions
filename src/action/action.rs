@@ -7,9 +7,9 @@ pub type Id = &'static str;
 ///
 /// To configure an action:
 /// - Call [`System::add_action`](crate::System::add_action)
-/// - Add the [`Action Id`](Id) used in `add_action` to add the action to a [`category`](crate::binding::LayoutBindings).
-/// - Add the category via [`System::add_map_category`](crate::System::add_map_category).
-/// - Enable the category for a given user via [`System::set_category_enabled`](crate::System::set_category_enabled).
+/// - Add the [`Action Id`](Id) used in `add_action` to add the action to an [`action set`](crate::binding::ActionSet).
+/// - Add the action set via [`System::add_action_set`](crate::System::add_action_set).
+/// - Enable the action set for a given user via [`System::mark_action_set_enabled`](crate::System::mark_action_set_enabled).
 ///
 /// Once configured, [`System::get_user_action`](crate::System::get_user_action) can be called to get the [`action state`](action::State).
 #[derive(Clone)]

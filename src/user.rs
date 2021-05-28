@@ -7,8 +7,8 @@ use std::{
 #[derive(Debug, Clone)]
 pub struct User {
 	devices: HashSet<device::Id>,
-	active_layout: binding::Layout,
-	enabled_categories: HashMap<binding::CategoryId, binding::LayoutBindings>,
+	active_layout: binding::LayoutId,
+	enabled_action_sets: HashMap<binding::ActionSetId, binding::ActionSet>,
 	bound_actions: HashMap<BindingStateKey, (action::Id, binding::Binding)>,
 	action_states: HashMap<action::Id, action::State>,
 	ticking_states: HashSet<action::Id>,
@@ -16,8 +16,8 @@ pub struct User {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct BindingStateKey {
-	category: binding::CategoryId,
-	layout: binding::Layout,
+	set_id: binding::ActionSetId,
+	layout: binding::LayoutId,
 	source: binding::Source,
 }
 
@@ -25,8 +25,8 @@ impl Default for User {
 	fn default() -> Self {
 		Self {
 			devices: HashSet::new(),
-			active_layout: None,
-			enabled_categories: HashMap::new(),
+			active_layout: binding::LayoutId::default(),
+			enabled_action_sets: HashMap::new(),
 			bound_actions: HashMap::new(),
 			action_states: HashMap::new(),
 			ticking_states: HashSet::new(),
@@ -37,16 +37,16 @@ impl Default for User {
 impl User {
 	pub fn set_layout(
 		&mut self,
-		layout: binding::Layout,
+		layout: binding::LayoutId,
 		actions: &HashMap<action::Id, action::Action>,
 	) {
 		self.active_layout = layout;
 		self.bound_actions.clear();
 		self.action_states.clear();
 		self.ticking_states.clear();
-		let category_ids = self.enabled_categories.keys().cloned().collect::<Vec<_>>();
-		for category_id in category_ids {
-			self.add_action_states(category_id, actions);
+		let set_ids = self.enabled_action_sets.keys().cloned().collect::<Vec<_>>();
+		for set_id in set_ids {
+			self.add_action_states(set_id, actions);
 		}
 	}
 
@@ -65,29 +65,29 @@ impl User {
 		})
 	}
 
-	pub fn enable_category(
+	pub fn enable_action_set(
 		&mut self,
-		id: binding::CategoryId,
-		category: &binding::LayoutBindings,
+		id: binding::ActionSetId,
+		set_id: &binding::ActionSet,
 		actions: &HashMap<action::Id, action::Action>,
 	) {
-		self.enabled_categories.insert(id, category.clone());
+		self.enabled_action_sets.insert(id, set_id.clone());
 		self.add_action_states(id, actions);
 	}
 
-	pub fn disable_category(&mut self, id: binding::CategoryId) {
-		self.enabled_categories.remove(&id);
+	pub fn disable_action_set(&mut self, id: binding::ActionSetId) {
+		self.enabled_action_sets.remove(&id);
 		self.remove_action_states(&id);
 	}
 
 	fn add_action_states(
 		&mut self,
-		category_id: binding::CategoryId,
+		set_id: binding::ActionSetId,
 		actions: &HashMap<action::Id, action::Action>,
 	) {
 		if let Some(action_binding_map) = self
-			.enabled_categories
-			.get(&category_id)
+			.enabled_action_sets
+			.get(&set_id)
 			.unwrap()
 			.get(&self.active_layout)
 		{
@@ -96,7 +96,7 @@ impl User {
 					for behavior in behaviors {
 						self.bound_actions.insert(
 							BindingStateKey {
-								category: category_id,
+								set_id: set_id,
 								layout: self.active_layout,
 								source: behavior.source,
 							},
@@ -113,12 +113,12 @@ impl User {
 		}
 	}
 
-	fn remove_action_states(&mut self, category_id: &binding::CategoryId) {
+	fn remove_action_states(&mut self, set_id: &binding::ActionSetId) {
 		// TODO: Can use `drain_filter` (https://github.com/rust-lang/rust/issues/59618) when stablized
 		let mut retained_actions = HashMap::new();
 		let mut removed_actions = HashMap::new();
 		for (bound_state_key, action_id) in self.bound_actions.drain() {
-			if bound_state_key.category == *category_id {
+			if bound_state_key.set_id == *set_id {
 				removed_actions.insert(bound_state_key, action_id);
 			} else {
 				retained_actions.insert(bound_state_key, action_id);
