@@ -15,5 +15,5 @@ default = ["log", "winit"]
 
 [dependencies]
 gilrs = { git = "https://github.com/temportalflux/gilrs-fork" }
-winit = { version = "0.24", optional = true }
+winit = { version = "0.25", optional = true }
 log = { version = "0.4", features = ["std"], optional = true }
