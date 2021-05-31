@@ -154,7 +154,12 @@ impl System {
 		self.users[user_id].add_device(device);
 		self.device_to_user.insert(device, user_id);
 		if cfg!(feature = "log") {
-			log::info!(target: "ReBound", "assigning {} to user {}", device, user_id);
+			log::info!(
+				target: crate::LOG,
+				"assigning {} to user {}",
+				device,
+				user_id
+			);
 		}
 	}
 
@@ -167,7 +172,12 @@ impl System {
 			self.users[user_id].remove_device(device);
 			self.disconnected_device_users.insert(device, user_id);
 			if cfg!(feature = "log") {
-				log::info!(target: "ReBound", "unassigning {} from user {}", device, user_id);
+				log::info!(
+					target: crate::LOG,
+					"unassigning {} from user {}",
+					device,
+					user_id
+				);
 			}
 		} else {
 			self.unassigned_devices.push(device);
