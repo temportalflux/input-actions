@@ -6,7 +6,7 @@ pub struct Behavior {
 }
 
 impl Behavior {
-	pub(crate) fn digital_axis(&self) -> &Option<DigitalAxis> {
+	pub(crate) fn _digital_axis(&self) -> &Option<DigitalAxis> {
 		&self.digital_axis
 	}
 }
