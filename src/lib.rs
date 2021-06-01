@@ -10,7 +10,7 @@
 //! As long as the system stays active for the lifecycle of the application,
 //! and its [`update`](System::update) is called at regular intervals,
 //! the rest is pretty hands-off.
-//! 
+//!
 //! ```rust
 //! let mut input_sys = System::new();
 //! input_sys
@@ -80,14 +80,14 @@
 //! 	// though it is equivalent to `mark_action_set_enabled` since there is only 1 user in this example.
 //! 	.enable_action_set_for_all(ActionSetId::default());
 //! ```
-//! 
+//!
 //! From there it is up to you to determine when and how to send the system updates
 //! so it knows what actions are in what state.
-//! 
+//!
 //! You should call [`System::update`](System::update) during your update loop
 //! (which will update the state of all actions for all users). This is primarily for
 //! gamepad input polling and updating actions that need simulation.
-//! 
+//!
 //! The input-actions system also needs to know about mouse and keyboard input,
 //! which can be supplied by any external source. If you are using [winit](https://crates.io/crates/winit),
 //! you can enable the `winit` feature,
@@ -100,10 +100,10 @@
 //! 	}
 //! }
 //! ```
-//! 
+//!
 //! The input-actions system also supports logging via the `log` feature:
 //! `input-actions = { version = "...", features = ["log"] }`
-//! 
+//!
 
 #[cfg(feature = "log")]
 extern crate log;
