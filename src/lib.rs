@@ -81,6 +81,29 @@
 //! 	.enable_action_set_for_all(ActionSetId::default());
 //! ```
 //! 
+//! From there it is up to you to determine when and how to send the system updates
+//! so it knows what actions are in what state.
+//! 
+//! You should call [`System::update`](System::update) during your update loop
+//! (which will update the state of all actions for all users). This is primarily for
+//! gamepad input polling and updating actions that need simulation.
+//! 
+//! The input-actions system also needs to know about mouse and keyboard input,
+//! which can be supplied by any external source. If you are using [winit](https://crates.io/crates/winit),
+//! you can enable the `winit` feature,
+//! `input-actions = { version = "...", features = ["winit"] }`
+//! and use the code below to sent window-based gameplay events:
+//! ```rust
+//! event_loop.run(move |event, _, _| {
+//! 	if let Ok((source, input_event)) = input::winit::parse_winit_event(&event) {
+//! 		input_sys.send_event(source, input_event);
+//! 	}
+//! }
+//! ```
+//! 
+//! The input-actions system also supports logging via the `log` feature:
+//! `input-actions = { version = "...", features = ["log"] }`
+//! 
 
 #[cfg(feature = "log")]
 extern crate log;
