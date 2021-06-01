@@ -2,7 +2,7 @@
 name = "input-actions"
 description = "An input system for binding PC & Gamepad inputs to application actions"
 license-file = "LICENSE"
-version = "0.1.0"
+version = "0.1.1-alpha.0"
 authors = ["Dustin Yost <dustin.yost.t@gmail.com>"]
 repository = "https://github.com/temportalflux/input-actions/"
 keywords = ["input", "game-dev", "gamepad", "joystick"]
