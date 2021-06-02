@@ -94,11 +94,11 @@
 //! `input-actions = { version = "...", features = ["winit"] }`
 //! and use the code below to sent window-based gameplay events:
 //! ```rust
-//! event_loop.run(move |event, _, _| {
+//! event_loop.run(|event, _, _| {
 //! 	if let Ok((source, input_event)) = input::winit::parse_winit_event(&event) {
 //! 		input_sys.send_event(source, input_event);
 //! 	}
-//! }
+//! });
 //! ```
 //!
 //! The input-actions system also supports logging via the `log` feature:
