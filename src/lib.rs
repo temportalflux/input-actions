@@ -12,6 +12,12 @@
 //! the rest is pretty hands-off.
 //!
 //! ```rust
+//! use input_actions::{
+//! 	System, action::Action,
+//! 	binding::{self, ActionSetId, LayoutId, ActionSet, ActionMap},
+//! 	device::GamepadKind,
+//! 	source
+//! };
 //! let mut input_sys = System::new();
 //! input_sys
 //! 	// There is only 1 player/user to send inputs for.
@@ -19,10 +25,10 @@
 //! 	// These action names are complete up to you.
 //! 	// It is recommended that you store the strings as static properties
 //! 	// so they can be referenced throughout the consuming crate.
-//! 	.add_action("button1", Action::new(Kind::Button))
-//! 	.add_action("button2", Action::new(Kind::Button))
-//! 	.add_action("axis1", Action::new(Kind::Axis))
-//! 	.add_action("axis2", Action::new(Kind::Axis))
+//! 	.add_action("button1", Action::new(source::Kind::Button))
+//! 	.add_action("button2", Action::new(source::Kind::Button))
+//! 	.add_action("axis1", Action::new(source::Kind::Axis))
+//! 	.add_action("axis2", Action::new(source::Kind::Axis))
 //! 	// This specifies that there is 1 layout (the default layout, which is equivalent to `None`).
 //! 	.add_layout(LayoutId::default())
 //! 	// This adds bindings for each action for a given layout.
@@ -40,7 +46,7 @@
 //! 						binding::Source::Keyboard(source::Key::Return).bound(),
 //! 						binding::Source::Keyboard(source::Key::NumpadEnter).bound(),
 //! 						binding::Source::Gamepad(GamepadKind::DualAxisGamepad,
-//! 							binding::Source::Button(source::Button::VirtualConfirm
+//! 							binding::Gamepad::Button(source::Button::VirtualConfirm
 //! 						)).bound(),
 //! 					],
 //! 				)
@@ -49,7 +55,7 @@
 //! 					vec![
 //! 						binding::Source::Keyboard(source::Key::Escape).bound(),
 //! 						binding::Source::Gamepad(GamepadKind::DualAxisGamepad,
-//! 							binding::Source::Button(source::Button::VirtualDeny)
+//! 							binding::Gamepad::Button(source::Button::VirtualDeny)
 //! 						).bound(),
 //! 					],
 //! 				)
@@ -59,7 +65,7 @@
 //! 						binding::Source::Keyboard(source::Key::W).with_modifier(1.0),
 //! 						binding::Source::Keyboard(source::Key::S).with_modifier(-1.0),
 //! 						binding::Source::Gamepad(GamepadKind::DualAxisGamepad,
-//! 							binding::Source::Axis(source::Axis::LThumbstickX)
+//! 							binding::Gamepad::Axis(source::Axis::LThumbstickX)
 //! 						).bound(),
 //! 					],
 //! 				)
@@ -69,7 +75,7 @@
 //! 						binding::Source::Keyboard(source::Key::A).with_modifier(-1.0),
 //! 						binding::Source::Keyboard(source::Key::D).with_modifier(1.0),
 //! 						binding::Source::Gamepad(GamepadKind::DualAxisGamepad,
-//! 							binding::Source::Axis(source::Axis::LThumbstickY)
+//! 							binding::Gamepad::Axis(source::Axis::LThumbstickY)
 //! 						).bound(),
 //! 					],
 //! 				)
@@ -93,9 +99,9 @@
 //! you can enable the `winit` feature,
 //! `input-actions = { version = "...", features = ["winit"] }`
 //! and use the code below to sent window-based gameplay events:
-//! ```rust
+//! ```rust,ignore
 //! event_loop.run(|event, _, _| {
-//! 	if let Ok((source, input_event)) = input::winit::parse_winit_event(&event) {
+//! 	if let Ok((source, input_event)) = input_actions::winit::parse_winit_event(&event) {
 //! 		input_sys.send_event(source, input_event);
 //! 	}
 //! });
