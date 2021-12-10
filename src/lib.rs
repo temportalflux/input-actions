@@ -3,7 +3,7 @@
 //! This crate utilizes "gilrs" (which uses "rusty-xinput") to handle gamepad input,
 //! and both of these crates expose potentially spammy levels of logging when devices are connected.
 //! It is recommended you ignore or limit the logging levels of "gilrs" and "rusty_xinput" log targets/modules.
-//! This is being tracked by https://gitlab.com/gilrs-project/gilrs/-/issues/105.
+//! This is being tracked by `<https://gitlab.com/gilrs-project/gilrs/-/issues/105>`.
 //!
 //! # Setup
 //! input-actions uses a "set it and forget it" approach to system management.
