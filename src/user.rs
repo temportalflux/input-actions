@@ -1,24 +1,30 @@
-use crate::{action, binding, device, event};
+use crate::{action, binding, device, event, source};
 use std::{
 	collections::{HashMap, HashSet},
 	time::Instant,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct User {
 	devices: HashSet<device::Id>,
 	active_layout: binding::LayoutId,
 	enabled_action_sets: HashMap<binding::ActionSetId, binding::ActionSet>,
-	bound_actions: HashMap<BindingStateKey, (action::Id, binding::Binding)>,
+	bound_actions: HashMap<BindingStateKey, action::Id>,
 	action_states: HashMap<action::Id, action::State>,
 	ticking_states: HashSet<action::Id>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct BindingStateKey {
 	set_id: binding::ActionSetId,
 	layout: binding::LayoutId,
-	source: binding::Source,
+	sources: Vec<binding::Source>,
+}
+
+impl BindingStateKey {
+	pub fn contains(&self, source: binding::Source) -> bool {
+		self.sources.contains(&source)
+	}
 }
 
 impl Default for User {
@@ -38,7 +44,7 @@ impl User {
 	pub fn set_layout(
 		&mut self,
 		layout: binding::LayoutId,
-		actions: &HashMap<action::Id, action::Action>,
+		actions: &HashMap<action::Id, source::Kind>,
 	) {
 		self.active_layout = layout;
 		self.bound_actions.clear();
@@ -69,7 +75,7 @@ impl User {
 		&mut self,
 		id: binding::ActionSetId,
 		set_id: &binding::ActionSet,
-		actions: &HashMap<action::Id, action::Action>,
+		actions: &HashMap<action::Id, source::Kind>,
 	) {
 		self.enabled_action_sets.insert(id, set_id.clone());
 		self.add_action_states(id, actions);
@@ -83,7 +89,7 @@ impl User {
 	fn add_action_states(
 		&mut self,
 		set_id: binding::ActionSetId,
-		actions: &HashMap<action::Id, action::Action>,
+		actions: &HashMap<action::Id, source::Kind>,
 	) {
 		if let Some(action_binding_map) = self
 			.enabled_action_sets
@@ -91,19 +97,17 @@ impl User {
 			.unwrap()
 			.get(&self.active_layout)
 		{
-			for (action_id, behaviors) in action_binding_map.iter() {
-				if let Some(action) = actions.get(action_id) {
-					for behavior in behaviors {
-						self.bound_actions.insert(
-							BindingStateKey {
-								set_id: set_id,
-								layout: self.active_layout,
-								source: behavior.source,
-							},
-							(action_id, *behavior),
-						);
-					}
-					let action_state = action::State::new(action.clone());
+			for (action_id, behavior_binding) in action_binding_map.iter() {
+				if let Some(_action) = actions.get(action_id) {
+					self.bound_actions.insert(
+						BindingStateKey {
+							set_id: set_id,
+							layout: self.active_layout,
+							sources: behavior_binding.sources(),
+						},
+						action_id,
+					);
+					let action_state = action::State::new(behavior_binding.clone());
 					if action_state.requires_updates() {
 						self.ticking_states.insert(action_id);
 					}
@@ -125,22 +129,29 @@ impl User {
 			}
 		}
 		self.bound_actions = retained_actions;
-		for (_, (action_id, _)) in removed_actions {
+		for (_, action_id) in removed_actions {
 			self.action_states.remove(action_id);
 			self.ticking_states.remove(action_id);
 		}
 	}
 
-	pub(crate) fn process_event(&mut self, event: &event::Event, time: &Instant) {
-		let mut matched_action_ids = Vec::new();
-		for (key, action_id) in self.bound_actions.iter() {
-			if key.source == event.source {
-				matched_action_ids.push(action_id);
-			}
-		}
-		for (action_id, behavior) in matched_action_ids {
-			if let Some(state) = self.action_states.get_mut(action_id) {
-				state.process_event(behavior.apply(event.clone()), &time);
+	pub(crate) fn process_event(
+		&mut self,
+		source: binding::Source,
+		state: &event::State,
+		time: &Instant,
+		screen_size: (f64, f64),
+	) {
+		let action_ids_bound_to_source =
+			self.bound_actions
+				.iter()
+				.filter_map(|(key, action_id)| match key.contains(source) {
+					true => Some(action_id),
+					false => None,
+				});
+		for action_id in action_ids_bound_to_source {
+			if let Some(user_state) = self.action_states.get_mut(action_id) {
+				user_state.process_event(source, state.clone(), &time, screen_size);
 			}
 		}
 	}

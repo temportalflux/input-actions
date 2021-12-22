@@ -9,31 +9,87 @@ use winit::event::VirtualKeyCode;
 pub fn parse_winit_event<'a, T>(
 	event: &winit::event::Event<'a, T>,
 ) -> Result<(event::Source, event::Event), ()> {
-	use winit::event::{DeviceEvent, ElementState, KeyboardInput, MouseScrollDelta};
+	use winit::event::{DeviceEvent, ElementState, KeyboardInput};
 	match event {
-		winit::event::Event::DeviceEvent {
-			event: DeviceEvent::MouseMotion { delta },
+		// resolution changed
+		winit::event::Event::WindowEvent {
+			event: winit::event::WindowEvent::Resized(physical_size),
 			..
 		} => Ok((
-			event::Source::Mouse,
-			event::Event {
-				source: binding::Source::Mouse(binding::Mouse::Move),
-				state: event::State::MouseMove(delta.0, delta.1),
-			},
+			event::Source::Window,
+			event::Event::Window(event::WindowEvent::ResolutionChanged(
+				physical_size.width,
+				physical_size.height,
+			)),
 		)),
+		// dpi changed
+		winit::event::Event::WindowEvent {
+			event:
+				winit::event::WindowEvent::ScaleFactorChanged {
+					scale_factor,
+					new_inner_size,
+				},
+			..
+		} => Ok((
+			event::Source::Window,
+			event::Event::Window(event::WindowEvent::ScaleFactorChanged(
+				new_inner_size.width,
+				new_inner_size.height,
+				*scale_factor,
+			)),
+		)),
+		winit::event::Event::DeviceEvent {
+			event: DeviceEvent::Motion { axis, value },
+			..
+		} => {
+			match axis {
+				// Mouse X is axis 0
+				0 => Ok((
+					event::Source::Mouse,
+					event::Event::Input(
+						binding::Source::Mouse(binding::Mouse::Move(binding::MouseAxis::MouseX)),
+						event::State::MouseMove(*value),
+					),
+				)),
+				// Mouse Y is axis 1
+				1 => Ok((
+					event::Source::Mouse,
+					event::Event::Input(
+						binding::Source::Mouse(binding::Mouse::Move(binding::MouseAxis::MouseY)),
+						event::State::MouseMove(*value),
+					),
+				)),
+				_ => Err(()), // NO-OP
+			}
+		}
+		/* TODO: Scroll wheel
 		winit::event::Event::DeviceEvent {
 			event:
 				DeviceEvent::MouseWheel {
 					delta: MouseScrollDelta::LineDelta(horizontal, vertical),
 				},
 			..
-		} => Ok((
-			event::Source::Mouse,
-			event::Event {
-				source: binding::Source::Mouse(binding::Mouse::Scroll),
-				state: event::State::MouseScroll(*horizontal, *vertical),
-			},
-		)),
+		} => {
+			let mut events = Vec::with_capacity(2);
+			if *horizontal > std::f32::EPSILON {
+				events.push(event::Event {
+					source: binding::Source::Mouse(binding::Mouse::Move(
+						binding::MouseAxis::MouseX,
+					)),
+					state: event::State::MouseScroll(*horizontal),
+				});
+			}
+			if *vertical > std::f32::EPSILON {
+				events.push(event::Event {
+					source: binding::Source::Mouse(binding::Mouse::Move(
+						binding::MouseAxis::MouseY,
+					)),
+					state: event::State::MouseScroll(*vertical),
+				});
+			}
+			Ok((event::Source::Mouse, events))
+		}
+		*/
 		winit::event::Event::DeviceEvent {
 			event: DeviceEvent::Button { button, state },
 			..
@@ -41,13 +97,13 @@ pub fn parse_winit_event<'a, T>(
 			.map(|button_enum| {
 				(
 					event::Source::Mouse,
-					event::Event {
-						source: binding::Source::Mouse(binding::Mouse::Button(button_enum)),
-						state: event::State::ButtonState(match state {
+					event::Event::Input(
+						binding::Source::Mouse(binding::Mouse::Button(button_enum)),
+						event::State::ButtonState(match state {
 							ElementState::Pressed => event::ButtonState::Pressed,
 							ElementState::Released => event::ButtonState::Released,
 						}),
-					},
+					),
 				)
 			})
 			.map_err(|id| {
@@ -67,13 +123,13 @@ pub fn parse_winit_event<'a, T>(
 			.map(|keycode| {
 				(
 					event::Source::Keyboard,
-					event::Event {
-						source: binding::Source::Keyboard(keycode),
-						state: event::State::ButtonState(match state {
+					event::Event::Input(
+						binding::Source::Keyboard(keycode),
+						event::State::ButtonState(match state {
 							ElementState::Pressed => event::ButtonState::Pressed,
 							ElementState::Released => event::ButtonState::Released,
 						}),
-					},
+					),
 				)
 			})
 			.map_err(|_| ()),

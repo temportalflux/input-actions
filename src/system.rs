@@ -3,7 +3,7 @@ use crate::{
 	binding::{self, ActionSet, ActionSetId, LayoutId},
 	device::{self, GamepadKind},
 	event,
-	source::{Axis, Button},
+	source::{Axis, Button, self},
 	User,
 };
 use std::{collections::HashMap, time::Instant};
@@ -14,12 +14,15 @@ pub type UserId = usize;
 pub struct System {
 	gamepad_input: gilrs::Gilrs,
 	users: Vec<User>,
-	actions: HashMap<action::Id, action::Action>,
+	actions: HashMap<action::Id, source::Kind>,
 	layouts: Vec<LayoutId>,
 	action_sets: HashMap<ActionSetId, ActionSet>,
 	unassigned_devices: Vec<device::Id>,
 	device_to_user: HashMap<device::Id, UserId>,
 	disconnected_device_users: HashMap<device::Id, UserId>,
+
+	screen_size: (f64, f64),
+	scale_factor: f64,
 }
 
 impl System {
@@ -33,6 +36,9 @@ impl System {
 			unassigned_devices: vec![device::Id::Mouse, device::Id::Keyboard],
 			device_to_user: HashMap::new(),
 			disconnected_device_users: HashMap::new(),
+
+			screen_size: (0.0, 0.0),
+			scale_factor: 1.0,
 		}
 		.initialize_gamepads()
 	}
@@ -60,7 +66,7 @@ impl System {
 	}
 
 	/// Adds an action to the list of actions the system supports.
-	pub fn add_action(&mut self, name: action::Id, action: action::Action) -> &mut Self {
+	pub fn add_action(&mut self, name: action::Id, action: source::Kind) -> &mut Self {
 		self.actions.insert(name, action);
 		self
 	}
@@ -126,7 +132,7 @@ impl System {
 		for device in unused_devices {
 			match device {
 				// Mouse and Keyboard devices should always go to the first user
-				device::Id::Mouse | device::Id::Keyboard => {
+				device::Id::Mouse | device::Id::Keyboard | device::Id::Window => {
 					if let Some(first_user_id) = self.users.iter().position(|_| true) {
 						self.assign_device(device, first_user_id);
 					} else {
@@ -253,7 +259,7 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							device,
-							event::Event::new(
+							event::Event::Input(
 								binding::Source::Gamepad(
 									gamepad_kind,
 									binding::Gamepad::Button(button),
@@ -269,7 +275,7 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							device,
-							event::Event::new(
+							event::Event::Input(
 								binding::Source::Gamepad(
 									gamepad_kind,
 									binding::Gamepad::Button(button),
@@ -287,7 +293,7 @@ impl System {
 					if let Some(button) = Button::try_from(btn).ok() {
 						self.process_event(
 							device,
-							event::Event::new(
+							event::Event::Input(
 								binding::Source::Gamepad(
 									gamepad_kind,
 									binding::Gamepad::Button(button),
@@ -303,7 +309,7 @@ impl System {
 					if let Some(axis) = Axis::try_from(axis).ok() {
 						self.process_event(
 							device,
-							event::Event::new(
+							event::Event::Input(
 								binding::Source::Gamepad(
 									gamepad_kind,
 									binding::Gamepad::Axis(axis),
@@ -326,6 +332,7 @@ impl System {
 			match source {
 				event::Source::Mouse => device::Id::Mouse,
 				event::Source::Keyboard => device::Id::Keyboard,
+				event::Source::Window => device::Id::Window,
 			},
 			event,
 			Instant::now(),
@@ -335,7 +342,28 @@ impl System {
 	/// Parses and processes a provided input event from a device.
 	fn process_event(&mut self, device: device::Id, event: event::Event, time: Instant) {
 		for event in self.parse_event(event) {
-			self.update_user_actions(device, event, time);
+			match event {
+				event::Event::Window(event::WindowEvent::ResolutionChanged(width, height)) => {
+					self.screen_size = (
+						(width as f64) / self.scale_factor,
+						(height as f64) / self.scale_factor,
+					);
+				}
+				event::Event::Window(event::WindowEvent::ScaleFactorChanged(
+					width,
+					height,
+					scale_factor,
+				)) => {
+					self.scale_factor = scale_factor;
+					self.screen_size = (
+						(width as f64) / self.scale_factor,
+						(height as f64) / self.scale_factor,
+					);
+				}
+				event::Event::Input(source, state) => {
+					self.update_user_actions(device, source, state, time);
+				}
+			}
 		}
 	}
 
@@ -344,40 +372,40 @@ impl System {
 	// `Button::VirtualConfirm` or `Button::VirtualDeny` in addition to the original button.
 	fn parse_event(&mut self, event: event::Event) -> Vec<event::Event> {
 		let mut events = vec![event.clone()];
-		if let event::Event {
-			source: binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::FaceBottom)),
-			..
-		} = event
+		if let event::Event::Input(
+			binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::FaceBottom)),
+			state,
+		) = event
 		{
-			events.push(event::Event {
-				source: binding::Source::Gamepad(
-					kind,
-					binding::Gamepad::Button(Button::VirtualConfirm),
-				),
-				..event
-			});
+			events.push(event::Event::Input(
+				binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::VirtualConfirm)),
+				state,
+			));
 		}
-		if let event::Event {
-			source: binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::FaceRight)),
-			..
-		} = event
+		if let event::Event::Input(
+			binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::FaceRight)),
+			state,
+		) = event
 		{
-			events.push(event::Event {
-				source: binding::Source::Gamepad(
-					kind,
-					binding::Gamepad::Button(Button::VirtualDeny),
-				),
-				..event
-			});
+			events.push(event::Event::Input(
+				binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::VirtualDeny)),
+				state,
+			));
 		}
 		events
 	}
 
 	/// Processes an event for a specific user based on the device.
-	fn update_user_actions(&mut self, device: device::Id, event: event::Event, time: Instant) {
+	fn update_user_actions(
+		&mut self,
+		device: device::Id,
+		source: binding::Source,
+		state: event::State,
+		time: Instant,
+	) {
 		if let Some(user_id) = self.device_to_user.get(&device) {
 			if let Some(user) = self.users.get_mut(*user_id) {
-				user.process_event(&event, &time);
+				user.process_event(source, &state, &time, self.screen_size);
 			}
 		}
 	}

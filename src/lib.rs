@@ -141,3 +141,11 @@ pub use system::*;
 
 mod user;
 pub(crate) use user::*;
+
+pub mod prelude {
+	pub use crate::{
+		action::{Id, BehaviorBinding, behavior::*},
+		binding::{ActionMap, ActionSet, LayoutId, Mouse::*, MouseAxis::*, Source::*, Gamepad},
+		source::{Key::*, Kind, MouseButton, Button, Button::*, Axis, Axis::*},
+	};
+}

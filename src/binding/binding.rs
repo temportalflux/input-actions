@@ -1,5 +1,5 @@
 use crate::{
-	binding, device, event, source,
+	binding, device, source,
 	source::{Axis, Button, Key, MouseButton},
 };
 
@@ -15,8 +15,15 @@ pub enum Source {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Mouse {
 	Button(MouseButton),
-	Move,
-	Scroll,
+	Move(MouseAxis),
+	Scroll(MouseAxis),
+}
+
+/// The axes a mouse movement or scroll could be bound to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MouseAxis {
+	MouseX,
+	MouseY,
 }
 
 /// All possible inputs from a gamepad device.
@@ -44,42 +51,5 @@ impl Source {
 			Self::Keyboard(_) => device::Kind::Keyboard,
 			Self::Gamepad(gamepad, _) => device::Kind::Gamepad(gamepad),
 		}
-	}
-
-	/// Converts the Source into a Binding with default properties/modifiers.
-	pub fn bound(self) -> Binding {
-		self.with_modifier(1.0)
-	}
-
-	/// Converts the Source into a Binding with a provided value modifier.
-	pub fn with_modifier(self, modifier: f32) -> Binding {
-		Binding {
-			source: self,
-			modifier,
-		}
-	}
-}
-
-/// A binding to some source with additional properties like a value modifier.
-/// Useful for binding buttons to axis actions for example.
-#[derive(Debug, Clone, Copy)]
-pub struct Binding {
-	pub source: Source,
-	/// Multipier to the value of the source when its event is received.
-	/// Can be used to invert button values from (0..1) range to (0..-1)
-	/// before they are applied as the input to an axis action.
-	pub modifier: f32,
-}
-
-impl Binding {
-	pub(crate) fn apply(&self, event: event::Event) -> event::Event {
-		let mut event = event;
-		match &mut event.state {
-			event::State::ButtonState(_btn_state) => {}
-			event::State::MouseMove(_x, _y) => {}
-			event::State::MouseScroll(_x, _y) => {}
-			event::State::ValueChanged(value) => *value *= self.modifier,
-		}
-		event
 	}
 }

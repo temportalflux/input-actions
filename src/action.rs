@@ -1,6 +1,7 @@
-mod action;
-pub use action::*;
-mod behavior;
-pub use behavior::*;
+pub type Id = &'static str;
+
+pub mod behavior;
+mod behavior_binding;
+pub use behavior_binding::*;
 mod state;
 pub use state::*;
