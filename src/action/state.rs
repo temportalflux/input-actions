@@ -110,4 +110,10 @@ impl State {
 			0.0
 		}
 	}
+
+	pub fn take_value(&mut self) -> f64 {
+		let v = self.value;
+		self.value = 0.0;
+		v
+	}
 }
