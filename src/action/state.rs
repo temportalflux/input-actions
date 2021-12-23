@@ -1,5 +1,11 @@
 use crate::{action::BehaviorBinding, binding, event};
-use std::time::Instant;
+use std::{
+	sync::{Arc, RwLock, Weak},
+	time::Instant,
+};
+
+pub type ArcLockState = Arc<RwLock<State>>;
+pub type WeakLockState = Weak<RwLock<State>>;
 
 /// The state of an active [`action`](action::Action) for a given user.
 #[derive(Debug, Clone)]
@@ -25,6 +31,10 @@ impl State {
 			modified_at: Instant::now(),
 			last_update_time: Instant::now(),
 		}
+	}
+
+	pub(crate) fn arclocked(self) -> ArcLockState {
+		Arc::new(RwLock::new(self))
 	}
 
 	pub(crate) fn process_event(

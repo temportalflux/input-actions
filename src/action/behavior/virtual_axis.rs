@@ -1,4 +1,4 @@
-use crate::{action::behavior::Behavior};
+use crate::action::behavior::Behavior;
 
 /// For [`Button`](crate::source::Kind::Button) events bound to [`Axis`](crate::source::Kind::Axis) actions.
 #[derive(Debug, Clone, Copy)]
@@ -20,7 +20,7 @@ pub enum VirtualAxisReverse {
 }
 
 impl Behavior for VirtualAxis {
-	fn cloned(&self) -> Box<dyn Behavior> {
+	fn cloned(&self) -> Box<dyn Behavior + Send + Sync> {
 		Box::new(self.clone())
 	}
 }

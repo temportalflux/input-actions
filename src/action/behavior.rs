@@ -2,7 +2,7 @@ use crate::binding::Source;
 use std::time::Instant;
 
 pub trait Behavior {
-	fn cloned(&self) -> Box<dyn Behavior>;
+	fn cloned(&self) -> Box<dyn Behavior + Send + Sync>;
 	fn process(
 		&self,
 		_source: Source,
@@ -14,8 +14,8 @@ pub trait Behavior {
 	}
 }
 
-impl Clone for Box<dyn Behavior> {
-	fn clone(&self) -> Box<dyn Behavior> {
+impl Clone for Box<dyn Behavior + Send + Sync> {
+	fn clone(&self) -> Box<dyn Behavior + Send + Sync> {
 		self.cloned()
 	}
 }

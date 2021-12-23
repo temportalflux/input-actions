@@ -97,8 +97,8 @@ you can enable the `winit` feature,
 and use the code below to sent window-based gameplay events:
 ```rust
 event_loop.run(move |event, _, _| {
-	if let Ok((source, input_event)) = input::winit::parse_winit_event(&event) {
-		input_sys.send_event(source, input_event);
+	if let Ok(input_event) = input::winit::parse_winit_event(&event) {
+		input_sys.send_event(input_event);
 	}
 }
 ```

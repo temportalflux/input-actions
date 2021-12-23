@@ -1,4 +1,4 @@
-use crate::{binding::Source, action::behavior::Behavior};
+use crate::{action::behavior::Behavior, binding::Source};
 use std::time::Instant;
 
 /// A value from -1.0 to 1.0 that represents the distance moved across
@@ -8,7 +8,7 @@ use std::time::Instant;
 #[derive(Debug, Clone, Copy)]
 pub struct ScreenPositionDelta;
 impl Behavior for ScreenPositionDelta {
-	fn cloned(&self) -> Box<dyn Behavior> {
+	fn cloned(&self) -> Box<dyn Behavior + Send + Sync> {
 		Box::new(self.clone())
 	}
 

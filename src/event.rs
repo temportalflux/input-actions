@@ -1,9 +1,13 @@
-use crate::binding;
+use crate::{binding, device};
+use crossbeam_channel::{Receiver, Sender};
+
+pub type InputSender = Sender<(binding::Source, State)>;
+pub type InputReceiver = Receiver<(binding::Source, State)>;
 
 /// An event created by a third-party to send input to [`System`](crate::System::send_event).
 #[derive(Debug, Clone)]
 pub enum Event {
-	Input(binding::Source, State),
+	Input(device::Id, binding::Source, State),
 	Window(WindowEvent),
 }
 
@@ -25,10 +29,10 @@ pub enum ButtonState {
 }
 
 /// What non-gamepad device caused the event.
+#[derive(Debug, Clone)]
 pub enum Source {
 	Mouse,
 	Keyboard,
-	Window,
 }
 
 /// The data for [`Event`].

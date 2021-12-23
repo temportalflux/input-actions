@@ -10,7 +10,7 @@ pub enum BehaviorBinding {
 #[derive(Clone)]
 pub struct SourceBehavior {
 	source: Source,
-	behaviors: Vec<Box<dyn Behavior + 'static>>,
+	behaviors: Vec<Box<dyn Behavior + 'static + Send + Sync>>,
 	behavior_type_names: Vec<String>,
 }
 
@@ -46,7 +46,7 @@ impl From<Source> for BehaviorBinding {
 impl SourceBehavior {
 	pub fn with_behavior<TBehavior>(mut self, behavior: TBehavior) -> Self
 	where
-		TBehavior: Behavior + 'static + Clone + Sized,
+		TBehavior: Behavior + 'static + Send + Sync + Clone + Sized,
 	{
 		self.add_behavior(behavior);
 		self
@@ -54,7 +54,7 @@ impl SourceBehavior {
 
 	pub fn add_behavior<TBehavior>(&mut self, behavior: TBehavior)
 	where
-		TBehavior: Behavior + 'static + Clone + Sized,
+		TBehavior: Behavior + 'static + Send + Sync + Clone + Sized,
 	{
 		self.behavior_type_names
 			.push(std::any::type_name::<TBehavior>().to_owned());
@@ -78,7 +78,7 @@ impl SourceBehavior {
 impl BehaviorBinding {
 	pub fn with_behavior<TBehavior>(mut self, behavior: TBehavior) -> Self
 	where
-		TBehavior: Behavior + 'static + Clone + Sized,
+		TBehavior: Behavior + 'static + Send + Sync + Clone + Sized,
 	{
 		match &mut self {
 			Self::Container(_) => unimplemented!(),
@@ -138,7 +138,7 @@ impl std::ops::Add<Source> for Source {
 
 impl<TBehavior> std::ops::Add<TBehavior> for Source
 where
-	TBehavior: Behavior + 'static + Clone + Sized,
+	TBehavior: Behavior + 'static + Send + Sync + Clone + Sized,
 {
 	type Output = BehaviorBinding;
 	fn add(self, rhs: TBehavior) -> Self::Output {
@@ -148,7 +148,7 @@ where
 
 impl<TBehavior> std::ops::Add<TBehavior> for BehaviorBinding
 where
-	TBehavior: Behavior + 'static + Clone + Sized,
+	TBehavior: Behavior + 'static + Send + Sync + Clone + Sized,
 {
 	type Output = Self;
 	fn add(self, rhs: TBehavior) -> Self::Output {

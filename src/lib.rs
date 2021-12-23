@@ -101,8 +101,8 @@
 //! and use the code below to sent window-based gameplay events:
 //! ```rust,ignore
 //! event_loop.run(|event, _, _| {
-//! 	if let Ok((source, input_event)) = input_actions::winit::parse_winit_event(&event) {
-//! 		input_sys.send_event(source, input_event);
+//! 	if let Ok(input_event) = input_actions::winit::parse_winit_event(&event) {
+//! 		input_sys.send_event(input_event);
 //! 	}
 //! });
 //! ```
@@ -140,12 +140,16 @@ mod system;
 pub use system::*;
 
 mod user;
-pub(crate) use user::*;
+pub use user::*;
 
 pub mod prelude {
 	pub use crate::{
-		action::{Id, BehaviorBinding, behavior::*},
-		binding::{ActionMap, ActionSet, LayoutId, Mouse::*, MouseAxis::*, Source::*, Gamepad},
-		source::{Key::*, Kind, MouseButton, Button, Button::*, Axis, Axis::*},
+		action::{behavior::*, BehaviorBinding, Id},
+		binding::{
+			ActionMap, ActionSet, ActionSetId, Gamepad, LayoutId, Mouse, MouseAxis::*, Source,
+		},
+		device::{GamepadKind, GamepadKind::*},
+		source::{Axis, Axis::*, Button, Button::*, Key, Key::*, Kind, MouseButton},
+		Config,
 	};
 }

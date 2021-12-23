@@ -3,46 +3,73 @@ use crate::{
 	binding::{self, ActionSet, ActionSetId, LayoutId},
 	device::{self, GamepadKind},
 	event,
-	source::{Axis, Button, self},
-	User,
+	source::{self, Axis, Button},
+	ArcLockUser, WeakLockUser,
 };
-use std::{collections::HashMap, time::Instant};
+use std::{
+	collections::HashMap,
+	sync::{Arc, RwLock, Weak},
+};
 
 pub type UserId = usize;
 
-/// Contains the setup for a particular application.
-pub struct System {
-	gamepad_input: gilrs::Gilrs,
-	users: Vec<User>,
+pub type ArcLockConfig = Arc<RwLock<Config>>;
+pub type WeakLockConfig = Weak<RwLock<Config>>;
+#[derive(Default, Clone)]
+pub struct Config {
 	actions: HashMap<action::Id, source::Kind>,
 	layouts: Vec<LayoutId>,
 	action_sets: HashMap<ActionSetId, ActionSet>,
-	unassigned_devices: Vec<device::Id>,
-	device_to_user: HashMap<device::Id, UserId>,
-	disconnected_device_users: HashMap<device::Id, UserId>,
-
-	screen_size: (f64, f64),
-	scale_factor: f64,
 }
 
-impl System {
-	pub fn new() -> Self {
+impl Config {
+	/// Adds an action to the list of actions the system supports.
+	pub fn add_action(mut self, name: action::Id, action: source::Kind) -> Self {
+		self.actions.insert(name, action);
+		self
+	}
+
+	/// Adds a layout to the list of layouts the system supports.
+	pub fn add_layout(mut self, layout: LayoutId) -> Self {
+		self.layouts.push(layout);
+		self
+	}
+
+	/// Associates an [`action set`](ActionSet) with an [`id`](ActionSetId).
+	pub fn add_action_set(mut self, id: ActionSetId, set: ActionSet) -> Self {
+		self.action_sets.insert(id, set);
+		self
+	}
+
+	pub(crate) fn get_action_set(&self, id: &binding::ActionSetId) -> Option<&binding::ActionSet> {
+		self.action_sets.get(&id)
+	}
+}
+
+pub struct DeviceCache {
+	gamepad_input: gilrs::Gilrs,
+	consts: Consts,
+	unassigned_devices: Vec<device::Id>,
+	assigned_devices: HashMap<device::Id, (WeakLockUser, event::InputSender)>,
+	disconnected_devices: HashMap<device::Id, (WeakLockUser, event::InputSender)>,
+	users: Vec<(WeakLockUser, Vec<device::Id>)>,
+}
+
+impl Default for DeviceCache {
+	fn default() -> Self {
 		Self {
 			gamepad_input: gilrs::Gilrs::new().unwrap(),
-			users: Vec::new(),
-			actions: HashMap::new(),
-			layouts: Vec::new(),
-			action_sets: HashMap::new(),
+			consts: Default::default(),
 			unassigned_devices: vec![device::Id::Mouse, device::Id::Keyboard],
-			device_to_user: HashMap::new(),
-			disconnected_device_users: HashMap::new(),
-
-			screen_size: (0.0, 0.0),
-			scale_factor: 1.0,
+			assigned_devices: HashMap::new(),
+			disconnected_devices: HashMap::new(),
+			users: Vec::new(),
 		}
 		.initialize_gamepads()
 	}
+}
 
+impl DeviceCache {
 	/// Grabs all gamepads from gilrs and attempts to connect them (or cache them if there are no users).
 	/// User internally when constructing the singleton.
 	fn initialize_gamepads(mut self) -> Self {
@@ -57,140 +84,7 @@ impl System {
 		self
 	}
 
-	/// Adds an amount of users to the system,
-	/// connecting any unassigned devices to the new users as available.
-	pub fn add_users(&mut self, count: usize) -> &mut Self {
-		self.users.extend((0..count).map(|_| User::default()));
-		self.assign_unused_devices();
-		self
-	}
-
-	/// Adds an action to the list of actions the system supports.
-	pub fn add_action(&mut self, name: action::Id, action: source::Kind) -> &mut Self {
-		self.actions.insert(name, action);
-		self
-	}
-
-	/// Adds a layout to the list of layouts the system supports.
-	pub fn add_layout(&mut self, layout: LayoutId) -> &mut Self {
-		self.layouts.push(layout);
-		self
-	}
-
-	/// Associates an [`action set`](ActionSet) with an [`id`](ActionSetId).
-	pub fn add_action_set(&mut self, id: ActionSetId, set: ActionSet) -> &mut Self {
-		self.action_sets.insert(id, set);
-		self
-	}
-
-	/// Sets the layout of a user.
-	/// If not called, all user's start with a `None` layout (default layout).
-	pub fn set_user_layout(&mut self, user_id: UserId, layout: LayoutId) -> &mut Self {
-		if let Some(user) = self.users.get_mut(user_id) {
-			user.set_layout(layout, &self.actions);
-		}
-		self
-	}
-
-	/// Enables and disables a provided [`action set`](ActionSet) for a given user.
-	/// When enabled, a user will receive input events for the actions in the [`action set`](ActionSet),
-	/// until the set is disabled (or until [`System::update`] stops being called).
-	pub fn mark_action_set_enabled(
-		&mut self,
-		user_id: UserId,
-		set_id: ActionSetId,
-		enabled: bool,
-	) -> &mut Self {
-		if let Some(user) = self.users.get_mut(user_id) {
-			if enabled {
-				if let Some(action_set) = self.action_sets.get(&set_id) {
-					user.enable_action_set(set_id, action_set, &self.actions);
-				}
-			} else {
-				user.disable_action_set(set_id);
-			}
-		}
-		self
-	}
-
-	/// Enables an [`action set`](ActionSet) for all existing users.
-	/// See [`System::mark_action_set_enabled`] for further details.
-	pub fn enable_action_set_for_all(&mut self, id: ActionSetId) -> &mut Self {
-		if let Some(action_set) = self.action_sets.get(&id) {
-			for user in self.users.iter_mut() {
-				user.enable_action_set(id, action_set, &self.actions);
-			}
-		}
-		self
-	}
-
-	/// Iterates over all unassigned devices and attempts to assign them to users.
-	/// Used predominately to assign devices to users on initialization
-	/// (where users are added after the system queries all the gamepads).
-	fn assign_unused_devices(&mut self) {
-		let unused_devices = self.unassigned_devices.drain(..).collect::<Vec<_>>();
-		for device in unused_devices {
-			match device {
-				// Mouse and Keyboard devices should always go to the first user
-				device::Id::Mouse | device::Id::Keyboard | device::Id::Window => {
-					if let Some(first_user_id) = self.users.iter().position(|_| true) {
-						self.assign_device(device, first_user_id);
-					} else {
-						self.unassigned_devices.push(device);
-					}
-				}
-				// Assign gamepads to users without gamepads
-				device::Id::Gamepad(_, _) => {
-					if let Some(user_id) = self
-						.users
-						.iter()
-						.position(|user| !user.has_gamepad_device())
-					{
-						self.assign_device(device, user_id);
-					} else {
-						self.unassigned_devices.push(device);
-					}
-				}
-			}
-		}
-	}
-
-	/// Assigns a device to a specific user - does not validate if this operation is actually desired.
-	fn assign_device(&mut self, device: device::Id, user_id: UserId) {
-		self.users[user_id].add_device(device);
-		self.device_to_user.insert(device, user_id);
-		if cfg!(feature = "log") {
-			log::info!(
-				target: crate::LOG,
-				"assigning {} to user {}",
-				device,
-				user_id
-			);
-		}
-	}
-
-	/// Unassigns a device from a user it may belong to.
-	/// The device is put in `unassigned_devices` if it had no user,
-	/// or in `disconnected_device_users` if it had a user so that we can track the device
-	/// should it become available again.
-	fn unassign_device(&mut self, device: device::Id) {
-		if let Some(user_id) = self.device_to_user.remove(&device) {
-			self.users[user_id].remove_device(device);
-			self.disconnected_device_users.insert(device, user_id);
-			if cfg!(feature = "log") {
-				log::info!(
-					target: crate::LOG,
-					"unassigning {} from user {}",
-					device,
-					user_id
-				);
-			}
-		} else {
-			self.unassigned_devices.push(device);
-		}
-	}
-
-	fn get_gamepad_kind(&self, _id: &gilrs::GamepadId) -> GamepadKind {
+	fn get_gamepad_kind(_id: &gilrs::GamepadId) -> GamepadKind {
 		// GILRS seems to always provide "Xbox Controller" as the gamepad name (`name()` AND `os_name()`)
 		// regardless of what kind of controller is actually is.
 		// Until this can be addressed, assume all controllers are Dual-Axis-Gamepad.
@@ -206,35 +100,115 @@ impl System {
 	/// If user already has another gamepad or the gamepad was never previously connected,
 	/// then it is assigned to the first user without a gamepad.
 	fn connect_gamepad(&mut self, id: gilrs::GamepadId) {
-		let device = device::Id::Gamepad(self.get_gamepad_kind(&id), id);
+		let device_id = device::Id::Gamepad(Self::get_gamepad_kind(&id), id.into());
 
-		if let Some(user_id) = self.disconnected_device_users.remove(&device) {
-			if !self.users[user_id].has_gamepad_device() {
-				self.assign_device(device, user_id);
+		if let Some((weak_user, _)) = self.disconnected_devices.remove(&device_id) {
+			if let Some(arc_user) = weak_user.upgrade() {
+				self.assign_device(&arc_user, device_id);
 				return;
 			}
 		}
 
-		if let Some(user_id) = self
-			.users
-			.iter()
-			.position(|user| !user.has_gamepad_device())
-		{
-			self.assign_device(device, user_id);
-			return;
-		}
-
-		self.unassigned_devices.push(device);
+		self.unassigned_devices.push(device_id);
 	}
 
 	/// Unassigns a gilrs gamepad from an user it may be assigned to.
 	fn disconnect_gamepad(&mut self, id: gilrs::GamepadId) {
-		self.unassign_device(device::Id::Gamepad(self.get_gamepad_kind(&id), id));
+		let device_id = device::Id::Gamepad(Self::get_gamepad_kind(&id), id.into());
+		if let Some(owner) = self.assigned_devices.remove(&device_id) {
+			for (weak, device_ids) in self.users.iter_mut() {
+				if weak.ptr_eq(&owner.0) {
+					device_ids.retain(|&id| id != device_id);
+					break;
+				}
+			}
+			self.disconnected_devices.insert(device_id, owner);
+		} else {
+			self.unassigned_devices.retain(|&id| id != device_id);
+		}
+	}
+
+	fn assign_device(&mut self, arc_user: &ArcLockUser, device_id: device::Id) {
+		let input_sender = arc_user.read().unwrap().input_sender().clone();
+		let weak_user = Arc::downgrade(&arc_user);
+		for (weak, device_ids) in self.users.iter_mut() {
+			if weak.ptr_eq(&weak_user) {
+				device_ids.push(device_id);
+				break;
+			}
+		}
+		self.assigned_devices
+			.insert(device_id, (weak_user, input_sender));
+	}
+
+	/// Iterates over all unassigned devices and attempts to assign them to users.
+	/// Used predominately to assign devices to users on initialization
+	/// (where users are added after the system queries all the gamepads).
+	fn assign_unused_devices(&mut self) {
+		let unused_devices = self.unassigned_devices.drain(..).collect::<Vec<_>>();
+		'iterDevices: for device in unused_devices {
+			match device {
+				// Mouse and Keyboard devices should always go to the first user
+				device::Id::Mouse | device::Id::Keyboard => {
+					for (weak_user, _device_ids) in self.users.iter_mut() {
+						if let Some(arc_user) = weak_user.upgrade() {
+							self.assign_device(&arc_user, device);
+							continue 'iterDevices;
+						}
+					}
+				}
+				// Assign gamepads to users without gamepads
+				device::Id::Gamepad(_, _) => {
+					for (weak_user, device_ids) in self.users.iter_mut() {
+						if let Some(arc_user) = weak_user.upgrade() {
+							let has_gamepad = device_ids.iter().any(|id| match id {
+								device::Id::Gamepad(_, _) => true,
+								_ => false,
+							});
+							if !has_gamepad {
+								self.assign_device(&arc_user, device);
+								continue 'iterDevices;
+							}
+						}
+					}
+				}
+			}
+			self.unassigned_devices.push(device);
+		}
+	}
+
+	pub fn add_user(&mut self, user: WeakLockUser) {
+		self.users.push((user, Vec::new()));
 	}
 
 	/// Queries the gilrs system to get all gamepad input events.
 	/// Sends relevant events to `process_event` (or connects/disconnects the gamepad if required).
-	fn read_gamepad_events(&mut self) {
+	pub fn update(&mut self) {
+		self.prune_users();
+		self.assign_unused_devices();
+		self.read_events();
+	}
+
+	pub fn users(&self) -> Vec<WeakLockUser> {
+		self.users.iter().map(|(user, _)| user.clone()).collect()
+	}
+
+	fn prune_users(&mut self) {
+		// Remove all users who've been dropped.
+		// Can use `Vec::drain_filter` when that api stabilizes.
+		// O(n) performance where `n` is the number of loaded chunks
+		let mut i = 0;
+		while i < self.users.len() {
+			if self.users[i].0.strong_count() == 0 {
+				let (_, mut device_ids) = self.users.remove(i);
+				self.unassigned_devices.append(&mut device_ids);
+			} else {
+				i += 1;
+			}
+		}
+	}
+
+	fn read_events(&mut self) {
 		use gilrs::EventType;
 		use std::convert::TryFrom;
 		while let Some(gilrs::Event {
@@ -243,9 +217,8 @@ impl System {
 			..
 		}) = self.gamepad_input.next_event()
 		{
-			let time = Instant::now();
-			let gamepad_kind = self.get_gamepad_kind(&id);
-			let device = device::Id::Gamepad(gamepad_kind, id);
+			let gamepad_kind = Self::get_gamepad_kind(&id);
+			let device = device::Id::Gamepad(gamepad_kind, id.into());
 			match event {
 				// Gamepad has been connected. If gamepad's UUID doesn't match one of disconnected gamepads,
 				// newly connected gamepad will get new ID.
@@ -257,33 +230,27 @@ impl System {
 				// Some button on gamepad has been pressed.
 				EventType::ButtonPressed(btn, _) => {
 					if let Some(button) = Button::try_from(btn).ok() {
-						self.process_event(
+						self.send_device_event((
 							device,
-							event::Event::Input(
-								binding::Source::Gamepad(
-									gamepad_kind,
-									binding::Gamepad::Button(button),
-								),
-								event::State::ButtonState(event::ButtonState::Pressed),
+							binding::Source::Gamepad(
+								gamepad_kind,
+								binding::Gamepad::Button(button),
 							),
-							time,
-						);
+							event::State::ButtonState(event::ButtonState::Pressed),
+						));
 					}
 				}
 				// Previously pressed button has been released.
 				EventType::ButtonReleased(btn, _) => {
 					if let Some(button) = Button::try_from(btn).ok() {
-						self.process_event(
+						self.send_device_event((
 							device,
-							event::Event::Input(
-								binding::Source::Gamepad(
-									gamepad_kind,
-									binding::Gamepad::Button(button),
-								),
-								event::State::ButtonState(event::ButtonState::Released),
+							binding::Source::Gamepad(
+								gamepad_kind,
+								binding::Gamepad::Button(button),
 							),
-							time,
-						);
+							event::State::ButtonState(event::ButtonState::Released),
+						));
 					}
 				}
 				// This event can be generated by [`ev::Repeat`](filter/struct.Repeat.html) event filter.
@@ -291,78 +258,68 @@ impl System {
 				// Value of button has changed. Value can be in range [0.0, 1.0].
 				EventType::ButtonChanged(btn, value, _) => {
 					if let Some(button) = Button::try_from(btn).ok() {
-						self.process_event(
+						self.send_device_event((
 							device,
-							event::Event::Input(
-								binding::Source::Gamepad(
-									gamepad_kind,
-									binding::Gamepad::Button(button),
-								),
-								event::State::ValueChanged(value),
+							binding::Source::Gamepad(
+								gamepad_kind,
+								binding::Gamepad::Button(button),
 							),
-							time,
-						);
+							event::State::ValueChanged(value),
+						));
 					}
 				}
 				// Value of axis has changed. Value can be in range [-1.0, 1.0].
 				EventType::AxisChanged(axis, value, _) => {
 					if let Some(axis) = Axis::try_from(axis).ok() {
-						self.process_event(
+						self.send_device_event((
 							device,
-							event::Event::Input(
-								binding::Source::Gamepad(
-									gamepad_kind,
-									binding::Gamepad::Axis(axis),
-								),
-								event::State::ValueChanged(value),
-							),
-							time,
-						);
+							binding::Source::Gamepad(gamepad_kind, binding::Gamepad::Axis(axis)),
+							event::State::ValueChanged(value),
+						));
 					}
 				}
 			}
 		}
 	}
 
+	pub(crate) fn consts(&self) -> &Consts {
+		&self.consts
+	}
+
 	/// Sends an input event to the system.
 	/// Use with caution! Gamepad events are already handled/built-in,
 	/// but Mouse and Keyboard events should come from the relevant feature/extension (like winit).
-	pub fn send_event(&mut self, source: event::Source, event: event::Event) {
-		self.process_event(
-			match source {
-				event::Source::Mouse => device::Id::Mouse,
-				event::Source::Keyboard => device::Id::Keyboard,
-				event::Source::Window => device::Id::Window,
-			},
-			event,
-			Instant::now(),
-		);
+	pub fn send_event(&mut self, event: event::Event) {
+		match event {
+			event::Event::Window(event::WindowEvent::ResolutionChanged(width, height)) => {
+				self.consts.screen_size = (
+					(width as f64) / self.consts.scale_factor,
+					(height as f64) / self.consts.scale_factor,
+				);
+				return;
+			}
+			event::Event::Window(event::WindowEvent::ScaleFactorChanged(
+				width,
+				height,
+				scale_factor,
+			)) => {
+				self.consts.scale_factor = scale_factor;
+				self.consts.screen_size = (
+					(width as f64) / self.consts.scale_factor,
+					(height as f64) / self.consts.scale_factor,
+				);
+				return;
+			}
+			event::Event::Input(device_source, binding_source, state) => {
+				self.send_device_event((device_source, binding_source, state));
+			}
+		}
 	}
 
-	/// Parses and processes a provided input event from a device.
-	fn process_event(&mut self, device: device::Id, event: event::Event, time: Instant) {
-		for event in self.parse_event(event) {
-			match event {
-				event::Event::Window(event::WindowEvent::ResolutionChanged(width, height)) => {
-					self.screen_size = (
-						(width as f64) / self.scale_factor,
-						(height as f64) / self.scale_factor,
-					);
-				}
-				event::Event::Window(event::WindowEvent::ScaleFactorChanged(
-					width,
-					height,
-					scale_factor,
-				)) => {
-					self.scale_factor = scale_factor;
-					self.screen_size = (
-						(width as f64) / self.scale_factor,
-						(height as f64) / self.scale_factor,
-					);
-				}
-				event::Event::Input(source, state) => {
-					self.update_user_actions(device, source, state, time);
-				}
+	fn send_device_event(&self, event: (device::Id, binding::Source, event::State)) {
+		for (device, binding, event) in self.parse_input_event(event) {
+			if let Some((_user, sender)) = self.assigned_devices.get(&device) {
+				let _ = sender.try_send((binding, event));
 			}
 		}
 	}
@@ -370,71 +327,49 @@ impl System {
 	// Based on the platform and the event, we may need to split the event into multiple events.
 	// For example: the bottom and right face buttons on a gamepad may need to also trigger
 	// `Button::VirtualConfirm` or `Button::VirtualDeny` in addition to the original button.
-	fn parse_event(&mut self, event: event::Event) -> Vec<event::Event> {
+	fn parse_input_event(
+		&self,
+		event: (device::Id, binding::Source, event::State),
+	) -> Vec<(device::Id, binding::Source, event::State)> {
 		let mut events = vec![event.clone()];
-		if let event::Event::Input(
+		if let (
+			device_id,
 			binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::FaceBottom)),
 			state,
 		) = event
 		{
-			events.push(event::Event::Input(
+			events.push((
+				device_id,
 				binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::VirtualConfirm)),
 				state,
 			));
 		}
-		if let event::Event::Input(
+		if let (
+			device_id,
 			binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::FaceRight)),
 			state,
 		) = event
 		{
-			events.push(event::Event::Input(
+			events.push((
+				device_id,
 				binding::Source::Gamepad(kind, binding::Gamepad::Button(Button::VirtualDeny)),
 				state,
 			));
 		}
 		events
 	}
+}
 
-	/// Processes an event for a specific user based on the device.
-	fn update_user_actions(
-		&mut self,
-		device: device::Id,
-		source: binding::Source,
-		state: event::State,
-		time: Instant,
-	) {
-		if let Some(user_id) = self.device_to_user.get(&device) {
-			if let Some(user) = self.users.get_mut(*user_id) {
-				user.process_event(source, &state, &time, self.screen_size);
-			}
+pub(crate) struct Consts {
+	pub(crate) screen_size: (f64, f64),
+	scale_factor: f64,
+}
+
+impl Default for Consts {
+	fn default() -> Self {
+		Self {
+			screen_size: (0.0, 0.0),
+			scale_factor: 1.0,
 		}
-	}
-
-	/// Collects gamepad input and updates relevant actions.
-	pub fn update(&mut self) {
-		self.read_gamepad_events();
-		let time = Instant::now();
-		for user in self.users.iter_mut() {
-			user.update(&time);
-		}
-	}
-
-	/// Returns a list of active user ids.
-	pub fn get_user_ids(&self) -> Vec<UserId> {
-		(0..self.users.len()).collect()
-	}
-
-	/// Returns the state for an action on a given user.
-	/// If the action is invalid or is not enabled for the user's layout
-	/// or list of enabled action sets, `None` will be returned.
-	pub fn get_user_action(
-		&self,
-		user_id: UserId,
-		action_id: action::Id,
-	) -> Option<&action::State> {
-		self.users
-			.get(user_id)
-			.map(|user| user.get_action(action_id))
-			.flatten()
 	}
 }

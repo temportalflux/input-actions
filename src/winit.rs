@@ -1,27 +1,22 @@
 use crate::{
-	binding, event,
+	binding, device, event,
 	source::{Key, MouseButton},
 };
 use std::convert::{TryFrom, TryInto};
 use winit::event::VirtualKeyCode;
 
 // TODO: Winit gamepad support is still in progress https://github.com/rust-windowing/winit/issues/944
-pub fn parse_winit_event<'a, T>(
-	event: &winit::event::Event<'a, T>,
-) -> Result<(event::Source, event::Event), ()> {
+pub fn parse_winit_event<'a, T>(event: &winit::event::Event<'a, T>) -> Result<event::Event, ()> {
 	use winit::event::{DeviceEvent, ElementState, KeyboardInput};
 	match event {
 		// resolution changed
 		winit::event::Event::WindowEvent {
 			event: winit::event::WindowEvent::Resized(physical_size),
 			..
-		} => Ok((
-			event::Source::Window,
-			event::Event::Window(event::WindowEvent::ResolutionChanged(
-				physical_size.width,
-				physical_size.height,
-			)),
-		)),
+		} => Ok(event::Event::Window(event::WindowEvent::ResolutionChanged(
+			physical_size.width,
+			physical_size.height,
+		))),
 		// dpi changed
 		winit::event::Event::WindowEvent {
 			event:
@@ -30,13 +25,12 @@ pub fn parse_winit_event<'a, T>(
 					new_inner_size,
 				},
 			..
-		} => Ok((
-			event::Source::Window,
-			event::Event::Window(event::WindowEvent::ScaleFactorChanged(
+		} => Ok(event::Event::Window(
+			event::WindowEvent::ScaleFactorChanged(
 				new_inner_size.width,
 				new_inner_size.height,
 				*scale_factor,
-			)),
+			),
 		)),
 		winit::event::Event::DeviceEvent {
 			event: DeviceEvent::Motion { axis, value },
@@ -44,20 +38,16 @@ pub fn parse_winit_event<'a, T>(
 		} => {
 			match axis {
 				// Mouse X is axis 0
-				0 => Ok((
-					event::Source::Mouse,
-					event::Event::Input(
-						binding::Source::Mouse(binding::Mouse::Move(binding::MouseAxis::MouseX)),
-						event::State::MouseMove(*value),
-					),
+				0 => Ok(event::Event::Input(
+					device::Id::Mouse,
+					binding::Source::Mouse(binding::Mouse::Move(binding::MouseAxis::MouseX)),
+					event::State::MouseMove(*value),
 				)),
 				// Mouse Y is axis 1
-				1 => Ok((
-					event::Source::Mouse,
-					event::Event::Input(
-						binding::Source::Mouse(binding::Mouse::Move(binding::MouseAxis::MouseY)),
-						event::State::MouseMove(*value),
-					),
+				1 => Ok(event::Event::Input(
+					device::Id::Mouse,
+					binding::Source::Mouse(binding::Mouse::Move(binding::MouseAxis::MouseY)),
+					event::State::MouseMove(*value),
 				)),
 				_ => Err(()), // NO-OP
 			}
@@ -95,15 +85,13 @@ pub fn parse_winit_event<'a, T>(
 			..
 		} => MouseButton::try_from(*button)
 			.map(|button_enum| {
-				(
-					event::Source::Mouse,
-					event::Event::Input(
-						binding::Source::Mouse(binding::Mouse::Button(button_enum)),
-						event::State::ButtonState(match state {
-							ElementState::Pressed => event::ButtonState::Pressed,
-							ElementState::Released => event::ButtonState::Released,
-						}),
-					),
+				event::Event::Input(
+					device::Id::Mouse,
+					binding::Source::Mouse(binding::Mouse::Button(button_enum)),
+					event::State::ButtonState(match state {
+						ElementState::Pressed => event::ButtonState::Pressed,
+						ElementState::Released => event::ButtonState::Released,
+					}),
 				)
 			})
 			.map_err(|id| {
@@ -121,15 +109,13 @@ pub fn parse_winit_event<'a, T>(
 		} => (*keycode)
 			.try_into()
 			.map(|keycode| {
-				(
-					event::Source::Keyboard,
-					event::Event::Input(
-						binding::Source::Keyboard(keycode),
-						event::State::ButtonState(match state {
-							ElementState::Pressed => event::ButtonState::Pressed,
-							ElementState::Released => event::ButtonState::Released,
-						}),
-					),
+				event::Event::Input(
+					device::Id::Keyboard,
+					binding::Source::Keyboard(keycode),
+					event::State::ButtonState(match state {
+						ElementState::Pressed => event::ButtonState::Pressed,
+						ElementState::Released => event::ButtonState::Released,
+					}),
 				)
 			})
 			.map_err(|_| ()),
