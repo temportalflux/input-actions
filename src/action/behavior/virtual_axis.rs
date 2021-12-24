@@ -23,4 +23,8 @@ impl Behavior for VirtualAxis {
 	fn cloned(&self) -> Box<dyn Behavior + Send + Sync> {
 		Box::new(self.clone())
 	}
+
+	fn debug_string(&self) -> String {
+		format!("{:?}", self)
+	}
 }

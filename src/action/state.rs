@@ -47,6 +47,10 @@ impl State {
 		if match event {
 			event::State::ButtonState(btn_state) => {
 				let is_active = btn_state == event::ButtonState::Pressed;
+
+				let value = if is_active { 1.0 } else { 0.0 };
+				self.value = self.behaviors.process(source, value, &time, &screen_size);
+
 				if self.active != is_active {
 					self.active = is_active;
 					true
@@ -92,6 +96,10 @@ impl State {
 		self.active && self.active_state_changed_this_frame
 	}
 
+	pub fn is_button_down(&self) -> bool {
+		self.active
+	}
+
 	/// Returns true when a [`button binding`](crate::source::Kind::Button) is not pressed,
 	/// and this function is called in the same update frame as the input event which released the button.
 	pub fn on_button_released(&self) -> bool {
@@ -109,6 +117,10 @@ impl State {
 		} else {
 			0.0
 		}
+	}
+
+	pub fn value(&self) -> f64 {
+		self.value
 	}
 
 	pub fn take_value(&mut self) -> f64 {

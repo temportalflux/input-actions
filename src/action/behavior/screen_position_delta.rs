@@ -12,13 +12,11 @@ impl Behavior for ScreenPositionDelta {
 		Box::new(self.clone())
 	}
 
-	fn process(
-		&self,
-		source: Source,
-		value: f64,
-		_time: &Instant,
-		screen_size: &(f64, f64),
-	) -> f64 {
+	fn debug_string(&self) -> String {
+		format!("{:?}", self)
+	}
+
+	fn map(&self, source: Source, value: f64, _time: &Instant, screen_size: &(f64, f64)) -> f64 {
 		use crate::binding::{Mouse, MouseAxis::*};
 		let axis = match source {
 			Source::Mouse(Mouse::Move(axis)) => axis,

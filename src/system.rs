@@ -15,7 +15,7 @@ pub type UserId = usize;
 
 pub type ArcLockConfig = Arc<RwLock<Config>>;
 pub type WeakLockConfig = Weak<RwLock<Config>>;
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Config {
 	actions: HashMap<action::Id, source::Kind>,
 	layouts: Vec<LayoutId>,

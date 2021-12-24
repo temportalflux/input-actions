@@ -8,13 +8,11 @@ impl Behavior for Multiplier {
 		Box::new(self.clone())
 	}
 
-	fn process(
-		&self,
-		_source: Source,
-		value: f64,
-		_time: &Instant,
-		_screen_size: &(f64, f64),
-	) -> f64 {
+	fn debug_string(&self) -> String {
+		format!("{:?}", self)
+	}
+
+	fn map(&self, _source: Source, value: f64, _time: &Instant, _screen_size: &(f64, f64)) -> f64 {
 		value * (self.0 as f64)
 	}
 }
