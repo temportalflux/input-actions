@@ -48,7 +48,7 @@ impl Config {
 
 pub struct DeviceCache {
 	gamepad_input: gilrs::Gilrs,
-	consts: Consts,
+	consts: Arc<RwLock<Consts>>,
 	unassigned_devices: Vec<device::Id>,
 	assigned_devices: HashMap<device::Id, (WeakLockUser, event::InputSender)>,
 	disconnected_devices: HashMap<device::Id, (WeakLockUser, event::InputSender)>,
@@ -282,8 +282,8 @@ impl DeviceCache {
 		}
 	}
 
-	pub(crate) fn consts(&self) -> &Consts {
-		&self.consts
+	pub fn consts(&self) -> Weak<RwLock<Consts>> {
+		Arc::downgrade(&self.consts)
 	}
 
 	/// Sends an input event to the system.
@@ -292,9 +292,10 @@ impl DeviceCache {
 	pub fn send_event(&mut self, event: event::Event) {
 		match event {
 			event::Event::Window(event::WindowEvent::ResolutionChanged(width, height)) => {
-				self.consts.screen_size = (
-					(width as f64) / self.consts.scale_factor,
-					(height as f64) / self.consts.scale_factor,
+				let mut consts = self.consts.write().unwrap();
+				consts.screen_size = (
+					(width as f64) / consts.scale_factor,
+					(height as f64) / consts.scale_factor,
 				);
 				return;
 			}
@@ -303,10 +304,11 @@ impl DeviceCache {
 				height,
 				scale_factor,
 			)) => {
-				self.consts.scale_factor = scale_factor;
-				self.consts.screen_size = (
-					(width as f64) / self.consts.scale_factor,
-					(height as f64) / self.consts.scale_factor,
+				let mut consts = self.consts.write().unwrap();
+				consts.scale_factor = scale_factor;
+				consts.screen_size = (
+					(width as f64) / consts.scale_factor,
+					(height as f64) / consts.scale_factor,
 				);
 				return;
 			}
@@ -360,7 +362,7 @@ impl DeviceCache {
 	}
 }
 
-pub(crate) struct Consts {
+pub struct Consts {
 	pub(crate) screen_size: (f64, f64),
 	scale_factor: f64,
 }

@@ -1,7 +1,7 @@
 use crate::{
 	action, binding,
 	event::{self, InputReceiver, InputSender},
-	DeviceCache, WeakLockConfig,
+	Consts, DeviceCache, WeakLockConfig,
 };
 use std::{
 	collections::{HashMap, HashSet},
@@ -13,7 +13,7 @@ pub type ArcLockUser = Arc<RwLock<User>>;
 pub type WeakLockUser = Weak<RwLock<User>>;
 pub struct User {
 	config: WeakLockConfig,
-	device_cache: Weak<RwLock<DeviceCache>>,
+	consts: Weak<RwLock<Consts>>,
 
 	name: String,
 
@@ -45,7 +45,7 @@ impl User {
 		let (input_sender, input_receiver) = crossbeam_channel::unbounded();
 		Self {
 			config: Weak::new(),
-			device_cache: Weak::new(),
+			consts: Weak::new(),
 			name,
 			active_layout: binding::LayoutId::default(),
 			enabled_action_sets: HashMap::new(),
@@ -62,8 +62,8 @@ impl User {
 		self
 	}
 
-	pub fn with_devices(mut self, device_cache: Weak<RwLock<DeviceCache>>) -> Self {
-		self.device_cache = device_cache;
+	pub fn with_consts(mut self, consts: Weak<RwLock<Consts>>) -> Self {
+		self.consts = consts;
 		self
 	}
 
@@ -168,9 +168,9 @@ impl User {
 	}
 
 	fn screen_size(&self) -> (f64, f64) {
-		let arc_cache = self.device_cache.upgrade().unwrap();
-		let cache = arc_cache.read().unwrap();
-		cache.consts().screen_size
+		let arc_consts = self.consts.upgrade().unwrap();
+		let consts = arc_consts.read().unwrap();
+		consts.screen_size
 	}
 
 	pub(crate) fn process_event(
