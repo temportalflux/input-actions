@@ -1,7 +1,7 @@
 use crate::{
 	action, binding,
 	event::{self, InputReceiver, InputSender},
-	Consts, DeviceCache, WeakLockConfig,
+	Consts, WeakLockConfig,
 };
 use std::{
 	collections::{HashMap, HashSet},
