@@ -8,7 +8,7 @@
 //! # Setup
 //! input-actions uses a "set it and forget it" approach to system management.
 //! As long as the system stays active for the lifecycle of the application,
-//! and its [`update`](System::update) is called at regular intervals,
+//! and its [`update`](DeviceCache::update) is called at regular intervals,
 //! the rest is pretty hands-off.
 //!
 //! ```rust
@@ -90,7 +90,7 @@
 //! From there it is up to you to determine when and how to send the system updates
 //! so it knows what actions are in what state.
 //!
-//! You should call [`System::update`](System::update) during your update loop
+//! You should call [`DeviceCache::update`](DeviceCache::update) during your update loop
 //! (which will update the state of all actions for all users). This is primarily for
 //! gamepad input polling and updating actions that need simulation.
 //!

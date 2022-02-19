@@ -7,7 +7,7 @@ use std::{
 pub type ArcLockState = Arc<RwLock<State>>;
 pub type WeakLockState = Weak<RwLock<State>>;
 
-/// The state of an active [`action`](action::Action) for a given user.
+/// The state of an active action for a given user.
 #[derive(Debug, Clone)]
 pub struct State {
 	behaviors: BehaviorBinding,

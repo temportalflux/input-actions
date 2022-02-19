@@ -92,9 +92,9 @@ impl User {
 		}
 	}
 
-	/// Enables a provided [`action set`](ActionSet) for a given user.
-	/// When enabled, a user will receive input events for the actions in the [`action set`](ActionSet),
-	/// until the set is disabled (or until [`System::update`] stops being called).
+	/// Enables a provided [`action set`](binding::ActionSet) for a given user.
+	/// When enabled, a user will receive input events for the actions in the [`action set`](binding::ActionSet),
+	/// until the set is disabled (or until [`crate::DeviceCache::update`] stops being called).
 	pub fn enable_action_set(&mut self, id: binding::ActionSetId) {
 		if let Some(arc_config) = self.config.upgrade() {
 			if let Ok(config) = arc_config.read() {

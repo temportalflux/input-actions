@@ -4,7 +4,7 @@ use crossbeam_channel::{Receiver, Sender};
 pub type InputSender = Sender<(binding::Source, State)>;
 pub type InputReceiver = Receiver<(binding::Source, State)>;
 
-/// An event created by a third-party to send input to [`System`](crate::System::send_event).
+/// An event created by a third-party to send input to [`DeviceCache`](crate::DeviceCache::send_event).
 #[derive(Debug, Clone)]
 pub enum Event {
 	Input(device::Id, binding::Source, State),
