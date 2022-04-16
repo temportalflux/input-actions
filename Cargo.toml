@@ -15,7 +15,7 @@ default = ["log", "winit"]
 
 [dependencies]
 gilrs = "0.8"
-winit = { version = "0.25", optional = true }
+winit = { version = "0.26", optional = true }
 log = { version = "0.4", features = ["std"], optional = true }
 enumset = { version = "1.0" }
 crossbeam-channel = "0.5"

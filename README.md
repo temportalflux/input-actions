@@ -1,5 +1,7 @@
 # input-actions
 
+WARNING: This crate is still being proven out and is very unstable, and will be until v1.0.0. You cannot rely on its API to be stable between versions and it should not be used for production code. Documentation is subject to being very out of date at any given time until first major release.
+
 input-actions is a Rust crate heavily inspired by Unity library [Rewired](https://assetstore.unity.com/packages/tools/utilities/rewired-21676) ([Website](https://guavaman.com/projects/rewired/)).
 
 This crate utilizes "gilrs" (which uses "rusty-xinput") to handle gamepad input,
